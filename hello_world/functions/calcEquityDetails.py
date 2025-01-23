@@ -77,8 +77,8 @@ def calcEquityDetails(dictPositionsDetailsInput, snowflakeConnection):
     
     # Calculation of the volatility indicators 
     lastPrice = dfPricesFinal[dictPositionsDetailsInput['tickerSymbol']].iloc[-1] 
-    dictDetailsOutput['1m implied volatility'] = calcImpliedVol(tickerSymbol, lastPrice, snowflakeConnection) 
-    dictDetailsOutput['1m realized volatility'] = (np.log(dfPricesFinal[tickerSymbol] / dfPricesFinal[tickerSymbol].shift(1))).rolling(22).std().iloc[-1] 
+    dictDetailsOutput['1m implied volatility'] = calcImpliedVol(dictPositionsDetailsInput['tickerSymbol'], lastPrice, snowflakeConnection) 
+    dictDetailsOutput['1m realized volatility'] = (np.log(dfPricesFinal[dictPositionsDetailsInput['tickerSymbol']] / dfPricesFinal[dictPositionsDetailsInput['tickerSymbol']].shift(1))).rolling(22).std().iloc[-1] 
     dictDetailsOutput['1m implied volatility premium'] = dictDetailsOutput['1m implied volatility'] - dictDetailsOutput['1m realized volatility'] 
     
     # Calculation of beta versus benchmark 
