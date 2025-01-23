@@ -1,33 +1,53 @@
 import json
+from datetime import datetime
+import sys
+
+# Import functions to do things 
+from functions.calcPositionsDetails import calcPositionsDetails 
+from functions.validateRequestBody import validateRequestBody 
+
+class first_call:
+    def calcDetails(jsonPortfolioStatsInput): 
+        # Compute process 
+        jsonPortfolioStatsOutput = calcPositionsDetails(jsonPortfolioStatsInput) 
+
+        return jsonPortfolioStatsOutput 
 
 
-def lambda_handler(event, context):
-    """Sample pure Lambda function
+def lambda_handler(event, context): 
+    print('Entered lambda handler') 
+    try:
+        # Start clock
+        start_time = datetime.now()
+        print("Start time", start_time)
 
-    Parameters
-    ----------
-    event: dict, required
-        API Gateway Lambda Proxy Input Format
+        # Event parameters from Lambda
+        parsedBody = json.loads(event["body"]) 
 
-        Event doc: https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-lambda-proxy-integrations.html#api-gateway-simple-proxy-for-lambda-input-format
+        print("parsedBody: ", parsedBody) 
 
-    context: object, required
-        Lambda Context runtime methods and attributes
+        valid, validMsg = validateRequestBody(parsedBody)
+        if not valid:
+            return {"statusCode": 400, "body": validMsg}
 
-        Context doc: https://docs.aws.amazon.com/lambda/latest/dg/python-context-object.html
+        print("Function call start")
+        jsonPositionDetails = first_call.calcDetails(json.dumps(parsedBody))
 
-    Returns
-    ------
-    API Gateway Lambda Proxy Output Format: dict
+        # f is the output of the previous function 
+        dictPositionDetails = json.loads(jsonPositionDetails) 
 
-        Return doc: https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-lambda-proxy-integrations.html
-    """
+        print("Function call end")
 
-    return {
-        "statusCode": 200,
-        "body": json.dumps(
-            {
-                "message": "hello world",
-            }
-        ),
-    }
+        print("Output", dictPositionDetails)
+
+        # End the clock
+        end_time = datetime.now()
+        print("End time", end_time)
+        print("Duration: {}".format(end_time - start_time))
+
+        return {"statusCode": 200, "body": json.dumps(dictPositionDetails)}
+
+    except Exception as ex:
+        ex_type, ex_value, ex_traceback = sys.exc_info()
+
+        return {"statusCode": 400, "body": str(ex_value)}
