@@ -2,6 +2,7 @@ import datetime as dt
 import intrinio_sdk as intrinio 
 import numpy as np 
 import pandas as pd 
+import requests 
 
 from functions.calcRsi import calcRsi 
 from functions.calcImpliedVol import calcImpliedVol 
@@ -9,7 +10,7 @@ from functions.getLatestWeekday import getLatestWeekday
 from functions.getSecretsSnowflake import getSecretsSnowflake 
 from functions.retrieveIntrinioStockPrices import retrieveIntrinioStockPrices 
 
-def calcEquityDetails(dictPositionsDetailsInput, snowflakeConnection): 
+def calcEquityDetails(serPositionsDetailsInput, intrinioApiKey, snowflakeConnection): 
     dictDetailsOutput = {} 
     
     # Getting prices for the stock or ETF 
@@ -20,7 +21,7 @@ def calcEquityDetails(dictPositionsDetailsInput, snowflakeConnection):
     pageSize = 100 
     nextPage = '' 
     
-    responseSecurityPrices = intrinio.SecurityApi().get_security_stock_prices(dictPositionsDetailsInput['tickerSymbol'], start_date = startDate, end_date = endDate, frequency = frequency, page_size = pageSize, next_page = nextPage) 
+    responseSecurityPrices = intrinio.SecurityApi().get_security_stock_prices(serPositionsDetailsInput['Ticker symbol'], start_date = startDate, end_date = endDate, frequency = frequency, page_size = pageSize, next_page = nextPage) 
     dictResponseSecurityPrices = responseSecurityPrices.to_dict() 
     
     dictDetailsOutput['Name'] = dictResponseSecurityPrices['security']['name'] 
@@ -36,6 +37,13 @@ def calcEquityDetails(dictPositionsDetailsInput, snowflakeConnection):
     dictDetailsOutput['52 week high'] = dfStockPrices[dfStockPrices['date'] == maxDate]['fifty_two_week_high'].iloc[0] 
     dictDetailsOutput['52 week low'] = dfStockPrices[dfStockPrices['date'] == maxDate]['fifty_two_week_low'].iloc[0] 
     
+    responseEarnings = requests.get(f"https://api-v2.intrinio.com/securities/{serPositionsDetailsInput['Ticker symbol']}/earnings/latest?api_key={intrinioApiKey}") 
+    dictResponseEarnings = responseEarnings.json() 
+    if 'error' in dictResponseEarnings.keys(): 
+        dictDetailsOutput['Next earnings date'] = 'NA' 
+    else: 
+        dictDetailsOutput['Next earnings date'] = dictResponseEarnings['next_earnings_date'] 
+    
     # Extracting historical price data 
     numOfYearsForDataExtraction = 5 
     endDate = dt.datetime.now() 
@@ -43,14 +51,13 @@ def calcEquityDetails(dictPositionsDetailsInput, snowflakeConnection):
     startDate = endDate - dt.timedelta(days = numOfYearsForDataExtraction * 365) 
     startDate = getLatestWeekday(startDate) 
     
-    # Data for SPY extracted to calculate the beta 
+    # Data for bebnchmark extracted to calculate the beta 
     # Needs to be made dynamic to deal with fixed income underlyings as well 
     benchmarkTicker = 'SPY' 
-    dfPricesFinal = retrieveIntrinioStockPrices([dictPositionsDetailsInput['tickerSymbol'], benchmarkTicker], startDate, endDate, 'adjclose', snowflakeConnection) 
+    dfPricesFinal = retrieveIntrinioStockPrices([serPositionsDetailsInput['Ticker symbol'], benchmarkTicker], startDate, endDate, 'adjclose', snowflakeConnection) 
     dfPricesFinal.index = pd.to_datetime(dfPricesFinal.index) 
     
-    # Start date has been shifted to ~1y ago because we need the 1y adjustment factors option prices calcs 
-    dfPricesFinalNonAdj, dfAdjFactors = retrieveIntrinioStockPrices([dictPositionsDetailsInput['tickerSymbol'], benchmarkTicker], startDate - dt.timedelta(days = 400), endDate, 'close', snowflakeConnection) 
+    dfPricesFinalNonAdj, dfAdjFactors = retrieveIntrinioStockPrices([serPositionsDetailsInput['Ticker symbol'], benchmarkTicker], startDate, endDate, 'close', snowflakeConnection) 
     dfPricesFinalNonAdj.index = pd.to_datetime(dfPricesFinalNonAdj.index) 
     
     # Rebasing the non-adjusted prices to start from the startDate 
@@ -65,41 +72,42 @@ def calcEquityDetails(dictPositionsDetailsInput, snowflakeConnection):
     # Calculating the split adjusted prices 
     dfPricesFinalSplitAdj = (dfPricesFinalNonAdj * dfCumuAdjFactors).dropna(how = 'all') 
     
-    dfDividendsNonAdj = retrieveIntrinioStockPrices([dictPositionsDetailsInput['tickerSymbol'], benchmarkTicker], startDate, endDate, 'dividend', snowflakeConnection) 
+    dfDividendsNonAdj = retrieveIntrinioStockPrices([serPositionsDetailsInput['Ticker symbol'], benchmarkTicker], startDate, endDate, 'dividend', snowflakeConnection) 
     
     # Calculating the split adjusted dividends 
     dfDividendsSplitAdj = (dfDividendsNonAdj * dfCumuAdjFactors).dropna(how = 'all') 
     
     # Calculation of the momentum indicators 
-    dictDetailsOutput['SMA 20d'] = dfPricesFinal[dictPositionsDetailsInput['tickerSymbol']].rolling(20).mean().iloc[-1] 
-    dictDetailsOutput['SMA 50d'] = dfPricesFinal[dictPositionsDetailsInput['tickerSymbol']].rolling(50).mean().iloc[-1] 
-    dictDetailsOutput['RSI 14d'] = calcRsi(dfPricesFinal, dictPositionsDetailsInput['tickerSymbol'], 14) 
+    dictDetailsOutput['SMA 20d'] = dfPricesFinal[serPositionsDetailsInput['Ticker symbol']].rolling(20).mean().iloc[-1] 
+    dictDetailsOutput['SMA 50d'] = dfPricesFinal[serPositionsDetailsInput['Ticker symbol']].rolling(50).mean().iloc[-1] 
+    dictDetailsOutput['RSI 14d'] = calcRsi(dfPricesFinal, serPositionsDetailsInput['Ticker symbol'], 14) 
     
     # Calculation of the volatility indicators 
-    lastPrice = dfPricesFinal[dictPositionsDetailsInput['tickerSymbol']].iloc[-1] 
-    dictDetailsOutput['1m implied volatility'] = calcImpliedVol(dictPositionsDetailsInput['tickerSymbol'], lastPrice, snowflakeConnection) 
-    dictDetailsOutput['1m realized volatility'] = (np.log(dfPricesFinal[dictPositionsDetailsInput['tickerSymbol']] / dfPricesFinal[dictPositionsDetailsInput['tickerSymbol']].shift(1))).rolling(22).std().iloc[-1] 
+    tickerSymbol = serPositionsDetailsInput['Ticker symbol'] 
+    lastPrice = dfPricesFinal[tickerSymbol].iloc[-1] 
+    dictDetailsOutput['1m implied volatility'] = calcImpliedVol(tickerSymbol, lastPrice, snowflakeConnection) 
+    dictDetailsOutput['1m realized volatility'] = (np.log(dfPricesFinal[tickerSymbol] / dfPricesFinal[tickerSymbol].shift(1))).rolling(22).std().iloc[-1] 
     dictDetailsOutput['1m implied volatility premium'] = dictDetailsOutput['1m implied volatility'] - dictDetailsOutput['1m realized volatility'] 
     
     # Calculation of beta versus benchmark 
     dfReturns = (dfPricesFinal / dfPricesFinal.shift(1) - 1).dropna() 
     dfCovMatrix = dfReturns.cov() 
-    dictDetailsOutput['Beta versus benchmark'] = dfCovMatrix.loc[dictPositionsDetailsInput['tickerSymbol'], benchmarkTicker] / (dfReturns[benchmarkTicker].std() ** 2) 
+    dictDetailsOutput['Beta versus benchmark'] = dfCovMatrix.loc[serPositionsDetailsInput['Ticker symbol'], benchmarkTicker] / (dfReturns[benchmarkTicker].std() ** 2) 
     
     strLastDate = dfDividendsSplitAdj.sort_index(ascending = True).index[-1].strftime('%Y-%m-%d') 
     strSecondLastDate = dfDividendsSplitAdj.sort_index(ascending = True).index[-2].strftime('%Y-%m-%d') 
-    dictDetailsOutput[f'Dividend on {strLastDate}'] = dfDividendsSplitAdj[dictPositionsDetailsInput['tickerSymbol']].iloc[-1] 
-    dictDetailsOutput[f'Dividend on {strSecondLastDate}'] = dfDividendsSplitAdj[dictPositionsDetailsInput['tickerSymbol']].iloc[-2] 
+    dictDetailsOutput[f'Dividend on {strLastDate}'] = dfDividendsSplitAdj[serPositionsDetailsInput['Ticker symbol']].iloc[-1] 
+    dictDetailsOutput[f'Dividend on {strSecondLastDate}'] = dfDividendsSplitAdj[serPositionsDetailsInput['Ticker symbol']].iloc[-2] 
     
     date1yAgo = endDate - dt.timedelta(days = 365) 
-    dividends1y = dfDividendsSplitAdj[dfDividendsSplitAdj.index >= date1yAgo][dictPositionsDetailsInput['tickerSymbol']].sum() 
+    dividends1y = dfDividendsSplitAdj[dfDividendsSplitAdj.index >= date1yAgo][serPositionsDetailsInput['Ticker symbol']].sum() 
     
     dictDetailsOutput['1y dividend yield'] = dividends1y / dictDetailsOutput['Last price'] 
     
     strLastDate = dfAdjFactors.sort_index(ascending = True).index[-1].strftime('%Y-%m-%d') 
     strSecondLastDate = dfAdjFactors.sort_index(ascending = True).index[-2].strftime('%Y-%m-%d') 
-    splitFactorLastDate = dfAdjFactors[dictPositionsDetailsInput['tickerSymbol']].iloc[-1] 
-    splitFactorSecondLastDate = dfAdjFactors[dictPositionsDetailsInput['tickerSymbol']].iloc[-2] 
+    splitFactorLastDate = dfAdjFactors[serPositionsDetailsInput['Ticker symbol']].iloc[-1] 
+    splitFactorSecondLastDate = dfAdjFactors[serPositionsDetailsInput['Ticker symbol']].iloc[-2] 
     dictDetailsOutput[f'Split adjustment on {strLastDate}'] = 'None' if splitFactorLastDate == 1 else f'{int((1 / splitFactorLastDate) * 100) / 100} for 1 split' 
     dictDetailsOutput[f'Split adjustment on {strSecondLastDate}'] = 'None' if splitFactorSecondLastDate == 1 else f'{int((1 / splitFactorSecondLastDate) * 100) / 100} for 1 split' 
     

@@ -1,5 +1,6 @@
 import intrinio_sdk as intrinio 
 import json 
+import pandas as pd 
 import snowflake.connector 
 
 from functions.calcEquityDetails import calcEquityDetails 
@@ -9,6 +10,8 @@ from functions.getSecretsSnowflake import getSecretsSnowflake
 
 def calcPositionsDetails(jsonPositionsDetailsInput): 
     dictPositionsDetailsInput = json.loads(jsonPositionsDetailsInput) 
+
+    dfInstrumentsDetails = pd.DataFrame(dictPositionsDetailsInput['dfInstrumentsDetails']) 
     
     # Initializing the Intrinio API 
     intrinioApiKey = getSecretsIntrinioApiKey() 
@@ -27,11 +30,13 @@ def calcPositionsDetails(jsonPositionsDetailsInput):
     
     snowflakeConnection = ctx.cursor() 
     
-    # Triggering the relevant algo depending on whether the ticker is for an option or a stock / ETF 
-    if dictPositionsDetailsInput['tickerType'].lower() == 'option': 
-        dictPositionsDetailsOutput = calcOptionDetails(dictPositionsDetailsInput, snowflakeConnection) 
-    elif dictPositionsDetailsInput['tickerType'].lower() == 'equity': 
-        dictPositionsDetailsOutput = calcEquityDetails(dictPositionsDetailsInput, snowflakeConnection) 
+    dictPositionsDetailsOutput = {} 
+    for eachIndex in dfInstrumentsDetails.index: 
+        # Triggering the relevant algo depending on whether the ticker is for an option or a stock / ETF 
+        if dfInstrumentsDetails.loc[eachIndex, 'Ticker type'].lower() == 'option': 
+            dictPositionsDetailsOutput[eachIndex] = calcOptionDetails(dfInstrumentsDetails.loc[eachIndex], intrinioApiKey, snowflakeConnection) 
+        elif dfInstrumentsDetails.loc[eachIndex, 'Ticker type'].lower() == 'equity': 
+            dictPositionsDetailsOutput[eachIndex] = calcEquityDetails(dfInstrumentsDetails.loc[eachIndex], intrinioApiKey, snowflakeConnection) 
     
     jsonPositionsDetailsOutput = json.dumps(dictPositionsDetailsOutput) 
     

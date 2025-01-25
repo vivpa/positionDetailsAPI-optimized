@@ -1,10 +1,16 @@
 
 def validateRequestBody(parsedBody):
     # Check if all the required keys are present
-    requiredFields = ['tickerSymbol', 'tickerType', 'tickerPosition'] 
+    lstRequiredKeys = ['dfInstrumentsDetails'] 
     
-    for eachField in requiredFields:
-        if eachField not in parsedBody:
-            return False, f"{eachField} is required" 
+    for eachKey in lstRequiredKeys: 
+        if eachKey not in parsedBody: 
+            return False, f"Key {eachKey} is required amongst the inputs" 
+
+    lstRequiredFields = ['Ticker symbol', 'Ticker type', 'Ticker position', 'Underlying position', 'Option entry price', 'Option trade date'] 
+    
+    for eachField in lstRequiredFields: 
+        if eachField not in parsedBody['dfInstrumentsDetails'].keys(): 
+            return False, f"Field '{eachField}' is required for each position" 
 
     return True, "Valid request body"
