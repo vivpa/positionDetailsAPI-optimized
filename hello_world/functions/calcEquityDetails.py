@@ -44,6 +44,20 @@ def calcEquityDetails(serPositionsDetailsInput, intrinioApiKey, snowflakeConnect
     else: 
         dictDetailsOutput['Next earnings date'] = dictResponseEarnings['next_earnings_date'] 
     
+    responseDividends = requests.get(f"https://api-v2.intrinio.com/securities/{serPositionsDetailsInput['Ticker symbol']}/dividends/latest?api_key={intrinioApiKey}") 
+    dictResponseDividends = responseDividends.json() 
+    if 'error' in dictResponseDividends.keys(): 
+        dictDetailsOutput['Next dividend ex date'] = 'NA' 
+        dictDetailsOutput['Next dividend amount'] = 'NA' 
+    else: 
+        latestExDividendDate = dictResponseDividends['last_ex_dividend_date'] 
+        if pd.to_datetime(latestExDividendDate, format = '%Y-%m-%d') > dt.datetime.now() - dt.timedelta(days = 1): 
+            dictDetailsOutput['Next dividend ex date'] = dictResponseDividends['last_ex_dividend_date'] 
+            dictDetailsOutput['Next dividend amount'] = dictResponseDividends['ex_dividend'] 
+        else: 
+            dictDetailsOutput['Next dividend ex date'] = 'NA' 
+            dictDetailsOutput['Next dividend amount'] = 'NA' 
+    
     # Extracting historical price data 
     numOfYearsForDataExtraction = 5 
     endDate = dt.datetime.now() 
@@ -86,7 +100,7 @@ def calcEquityDetails(serPositionsDetailsInput, intrinioApiKey, snowflakeConnect
     tickerSymbol = serPositionsDetailsInput['Ticker symbol'] 
     lastPrice = dfPricesFinal[tickerSymbol].iloc[-1] 
     dictDetailsOutput['1m implied volatility'] = calcImpliedVol(tickerSymbol, lastPrice, snowflakeConnection) 
-    dictDetailsOutput['1m realized volatility'] = (np.log(dfPricesFinal[tickerSymbol] / dfPricesFinal[tickerSymbol].shift(1))).rolling(22).std().iloc[-1] 
+    dictDetailsOutput['1m realized volatility'] = (np.log(dfPricesFinal[tickerSymbol] / dfPricesFinal[tickerSymbol].shift(1))).rolling(22).std().iloc[-1] * np.sqrt(252) 
     dictDetailsOutput['1m implied volatility premium'] = dictDetailsOutput['1m implied volatility'] - dictDetailsOutput['1m realized volatility'] 
     
     # Calculation of beta versus benchmark 

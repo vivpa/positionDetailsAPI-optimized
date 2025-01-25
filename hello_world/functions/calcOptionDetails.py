@@ -53,6 +53,20 @@ def calcOptionDetails(serPositionsDetailsInput, intrinioApiKey, snowflakeConnect
     else: 
         dictDetailsOutput['Next earnings date'] = dictResponseEarnings['next_earnings_date'] 
     
+    responseDividends = requests.get(f"https://api-v2.intrinio.com/securities/{dictDetailsOutput['Option underlying ticker']}/dividends/latest?api_key={intrinioApiKey}") 
+    dictResponseDividends = responseDividends.json() 
+    if 'error' in dictResponseDividends.keys(): 
+        dictDetailsOutput['Next dividend ex date'] = 'NA' 
+        dictDetailsOutput['Next dividend amount'] = 'NA' 
+    else: 
+        latestExDividendDate = dictResponseDividends['last_ex_dividend_date'] 
+        if pd.to_datetime(latestExDividendDate, format = '%Y-%m-%d') > dt.datetime.now() - dt.timedelta(days = 1): 
+            dictDetailsOutput['Next dividend ex date'] = dictResponseDividends['last_ex_dividend_date'] 
+            dictDetailsOutput['Next dividend amount'] = dictResponseDividends['ex_dividend'] 
+        else: 
+            dictDetailsOutput['Next dividend ex date'] = 'NA' 
+            dictDetailsOutput['Next dividend amount'] = 'NA' 
+    
     # Option rho to be done later, Rajeev working on the model for option exercise probability 
     # optionRho = TBC 
     # optionExerciseProbability = TBC 
