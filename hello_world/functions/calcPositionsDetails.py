@@ -31,13 +31,17 @@ def calcPositionsDetails(jsonPositionsDetailsInput):
     snowflakeConnection = ctx.cursor() 
     
     dictPositionsDetailsOutput = {} 
-    for eachIndex in dfInstrumentsDetails.index: 
+    for eachColumn in dfInstrumentsDetails.columns: 
         # Triggering the relevant algo depending on whether the ticker is for an option or a stock / ETF 
-        if dfInstrumentsDetails.loc[eachIndex, 'Ticker type'].lower() == 'option': 
-            dictPositionsDetailsOutput[eachIndex] = calcOptionDetails(dfInstrumentsDetails.loc[eachIndex], intrinioApiKey, snowflakeConnection) 
-        elif dfInstrumentsDetails.loc[eachIndex, 'Ticker type'].lower() == 'equity': 
-            dictPositionsDetailsOutput[eachIndex] = calcEquityDetails(dfInstrumentsDetails.loc[eachIndex], intrinioApiKey, snowflakeConnection) 
+        if dfInstrumentsDetails[eachColumn]['Ticker type'].lower() == 'option': 
+            dictPositionsDetailsOutput[eachColumn] = calcOptionDetails(dfInstrumentsDetails[eachColumn], intrinioApiKey, snowflakeConnection) 
+        elif dfInstrumentsDetails[eachColumn]['Ticker type'].lower() == 'equity': 
+            dictPositionsDetailsOutput[eachColumn] = calcEquityDetails(dfInstrumentsDetails[eachColumn], intrinioApiKey, snowflakeConnection) 
     
-    jsonPositionsDetailsOutput = json.dumps(dictPositionsDetailsOutput) 
+    dictPositionsDetailsOutputRevised = {} 
+    for eachKey in dictPositionsDetailsOutput.keys(): 
+        dictPositionsDetailsOutputRevised[eachKey] = pd.Series(dictPositionsDetailsOutput[eachKey]).fillna('NA').to_dict() 
+
+    jsonPositionsDetailsOutput = json.dumps(dictPositionsDetailsOutputRevised) 
     
     return jsonPositionsDetailsOutput 

@@ -1,3 +1,4 @@
+import pandas as pd 
 
 def validateRequestBody(parsedBody):
     # Check if all the required keys are present
@@ -10,7 +11,7 @@ def validateRequestBody(parsedBody):
     lstRequiredFields = ['Ticker symbol', 'Ticker type', 'Ticker position', 'Underlying position', 'Option entry price', 'Option trade date'] 
     
     for eachField in lstRequiredFields: 
-        if eachField not in parsedBody['dfInstrumentsDetails'].keys(): 
+        if eachField not in list(pd.DataFrame(parsedBody['dfInstrumentsDetails']).index): 
             return False, f"Field '{eachField}' is required for each position" 
 
     return True, "Valid request body"
