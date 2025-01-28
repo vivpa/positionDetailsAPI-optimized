@@ -50,13 +50,17 @@ def calcEquityDetails(serPositionsDetailsInput, intrinioApiKey, snowflakeConnect
         dictDetailsOutput['Next dividend ex date'] = 'NA' 
         dictDetailsOutput['Next dividend amount'] = 'NA' 
     else: 
-        latestExDividendDate = dictResponseDividends['last_ex_dividend_date'] 
-        if pd.to_datetime(latestExDividendDate, format = '%Y-%m-%d') > dt.datetime.now() - dt.timedelta(days = 1): 
-            dictDetailsOutput['Next dividend ex date'] = dictResponseDividends['last_ex_dividend_date'] 
-            dictDetailsOutput['Next dividend amount'] = dictResponseDividends['ex_dividend'] 
-        else: 
+        if dictResponseDividends['last_ex_dividend_date'] == None: 
             dictDetailsOutput['Next dividend ex date'] = 'NA' 
             dictDetailsOutput['Next dividend amount'] = 'NA' 
+        else: 
+            latestExDividendDate = dictResponseDividends['last_ex_dividend_date'] 
+            if pd.to_datetime(latestExDividendDate, format = '%Y-%m-%d') > dt.datetime.now() - dt.timedelta(days = 1): 
+                dictDetailsOutput['Next dividend ex date'] = dictResponseDividends['last_ex_dividend_date'] 
+                dictDetailsOutput['Next dividend amount'] = dictResponseDividends['ex_dividend'] 
+            else: 
+                dictDetailsOutput['Next dividend ex date'] = 'NA' 
+                dictDetailsOutput['Next dividend amount'] = 'NA' 
     
     # Extracting historical price data 
     numOfYearsForDataExtraction = 5 
@@ -114,14 +118,14 @@ def calcEquityDetails(serPositionsDetailsInput, intrinioApiKey, snowflakeConnect
     dictDetailsOutput[f'Dividend on {strSecondLastDate}'] = dfDividendsSplitAdj[serPositionsDetailsInput['Ticker symbol']].iloc[-2] 
     
     date1yAgo = endDate - dt.timedelta(days = 365) 
-    dividends1y = dfDividendsSplitAdj[dfDividendsSplitAdj.index >= date1yAgo][serPositionsDetailsInput['Ticker symbol']].sum() 
+    dividends1y = dfDividendsSplitAdj[pd.to_datetime(dfDividendsSplitAdj.index) >= date1yAgo][serPositionsDetailsInput['Ticker symbol']].sum() 
     
     dictDetailsOutput['1y dividend yield'] = dividends1y / dictDetailsOutput['Last price'] 
     
     strLastDate = dfAdjFactors.sort_index(ascending = True).index[-1].strftime('%Y-%m-%d') 
     strSecondLastDate = dfAdjFactors.sort_index(ascending = True).index[-2].strftime('%Y-%m-%d') 
-    splitFactorLastDate = dfAdjFactors[serPositionsDetailsInput['Ticker symbol']].iloc[-1] 
-    splitFactorSecondLastDate = dfAdjFactors[serPositionsDetailsInput['Ticker symbol']].iloc[-2] 
+    splitFactorLastDate = dfAdjFactors[serPositionsDetailsInput['Ticker symbol']].ffill().iloc[-1] 
+    splitFactorSecondLastDate = dfAdjFactors[serPositionsDetailsInput['Ticker symbol']].ffill().iloc[-2] 
     dictDetailsOutput[f'Split adjustment on {strLastDate}'] = 'None' if splitFactorLastDate == 1 else f'{int((1 / splitFactorLastDate) * 100) / 100} for 1 split' 
     dictDetailsOutput[f'Split adjustment on {strSecondLastDate}'] = 'None' if splitFactorSecondLastDate == 1 else f'{int((1 / splitFactorSecondLastDate) * 100) / 100} for 1 split' 
     
