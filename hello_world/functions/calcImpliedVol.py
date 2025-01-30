@@ -9,7 +9,7 @@ def calcImpliedVol(tickerSymbol, lastPrice, snowflakeConnection):
     stockId = dfResults['STOCK_ID'].iloc[0] 
     
     # Extracting implied vol for the relevant ticker 
-    startDate = (dt.datetime.now() - dt.timedelta(days = 7)).strftime("%Y%m%d") 
+    startDate = (dt.datetime.now() - dt.timedelta(days = 30)).strftime("%Y%m%d") 
     endDate = dt.datetime.now().strftime("%Y%m%d") 
     dfImpVol = snowflakeIvolQueries(str(stockId), startDate, endDate, snowflakeConnection) 
     dfImpVol = dfImpVol.drop_duplicates() 

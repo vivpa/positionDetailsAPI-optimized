@@ -11,7 +11,7 @@ from functions.getSecretsSnowflake import getSecretsSnowflake
 def calcPositionsDetails(jsonPositionsDetailsInput): 
     dictPositionsDetailsInput = json.loads(jsonPositionsDetailsInput) 
 
-    dfInstrumentsDetails = pd.DataFrame(dictPositionsDetailsInput['dfInstrumentsDetails']) 
+    dfInstrumentsDetails = pd.DataFrame(dictPositionsDetailsInput['dfInstrumentsDetails']).T 
     
     # Initializing the Intrinio API 
     intrinioApiKey = getSecretsIntrinioApiKey() 

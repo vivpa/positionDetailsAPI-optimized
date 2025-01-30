@@ -15,7 +15,7 @@ def calcEquityDetails(serPositionsDetailsInput, intrinioApiKey, snowflakeConnect
     
     # Getting prices for the stock or ETF 
     # If the underlying is a stock or an ETF, prices are obtained through SecurityApi() 
-    startDate = (dt.datetime.now() - dt.timedelta(days = 7)).strftime('%Y-%m-%d') 
+    startDate = (dt.datetime.now() - dt.timedelta(days = 30)).strftime('%Y-%m-%d') 
     endDate = dt.datetime.now().strftime('%Y-%m-%d') 
     frequency = 'daily' 
     pageSize = 100 
