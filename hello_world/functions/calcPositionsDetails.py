@@ -47,6 +47,6 @@ def calcPositionsDetails(jsonPositionsDetailsInput):
     for eachKey in dictPositionsDetailsOutputRevised.keys(): 
         lstPositionsDetailsOutput = lstPositionsDetailsOutput + [dictPositionsDetailsOutputRevised[eachKey]] 
     
-    jsonPositionsDetailsOutput = json.dumps(dictPositionsDetailsOutputRevised) 
+    jsonPositionsDetailsOutput = json.dumps(lstPositionsDetailsOutput) 
     
     return jsonPositionsDetailsOutput 
