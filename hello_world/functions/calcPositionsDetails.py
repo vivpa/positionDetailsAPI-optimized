@@ -42,6 +42,11 @@ def calcPositionsDetails(jsonPositionsDetailsInput):
     for eachKey in dictPositionsDetailsOutput.keys(): 
         dictPositionsDetailsOutputRevised[eachKey] = pd.Series(dictPositionsDetailsOutput[eachKey]).fillna('NA').to_dict() 
 
+    # Creating an output list 
+    lstPositionsDetailsOutput = [] 
+    for eachKey in dictPositionsDetailsOutputRevised.keys(): 
+        lstPositionsDetailsOutput = lstPositionsDetailsOutput + [dictPositionsDetailsOutputRevised[eachKey]] 
+    
     jsonPositionsDetailsOutput = json.dumps(dictPositionsDetailsOutputRevised) 
     
     return jsonPositionsDetailsOutput 
