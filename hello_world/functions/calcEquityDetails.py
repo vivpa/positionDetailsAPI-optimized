@@ -98,7 +98,9 @@ def calcEquityDetails(serPositionsDetailsInput, intrinioApiKey, snowflakeConnect
     # Calculation of the momentum indicators 
     dictDetailsOutput['SMA 20d'] = dfPricesFinal[serPositionsDetailsInput['Ticker symbol']].rolling(20).mean().iloc[-1] 
     dictDetailsOutput['SMA 50d'] = dfPricesFinal[serPositionsDetailsInput['Ticker symbol']].rolling(50).mean().iloc[-1] 
-    dictDetailsOutput['RSI 14d'] = calcRsi(dfPricesFinal, serPositionsDetailsInput['Ticker symbol'], 14) 
+    dictDetailsOutput['RSI 1 week'] = calcRsi(dfPricesFinal, serPositionsDetailsInput['Ticker symbol'], 5) 
+    dictDetailsOutput['RSI 2 weeks'] = calcRsi(dfPricesFinal, serPositionsDetailsInput['Ticker symbol'], 10) 
+    dictDetailsOutput['RSI 1 month'] = calcRsi(dfPricesFinal, serPositionsDetailsInput['Ticker symbol'], 22) 
     
     # Calculation of the volatility indicators 
     tickerSymbol = serPositionsDetailsInput['Ticker symbol'] 
