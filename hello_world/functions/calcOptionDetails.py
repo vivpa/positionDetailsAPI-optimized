@@ -3,12 +3,11 @@ import intrinio_sdk as intrinio
 import pandas as pd 
 import requests 
 
+from functions.computeOptionValues import computeOptionValues 
 from functions.getLatestWeekday import getLatestWeekday 
 from functions.retrieveIntrinioStockPrices import retrieveIntrinioStockPrices 
 
 def calcOptionDetails(serPositionsDetailsInput, intrinioApiKey, snowflakeConnection): 
-    # Getting prices for the option 
-    # If the underlying is an option, prices are obtained through OptionsApi() 
     source = '' 
     stockPriceSource = '' 
     model = '' 
@@ -43,6 +42,7 @@ def calcOptionDetails(serPositionsDetailsInput, intrinioApiKey, snowflakeConnect
     dictDetailsOutput['Ask size'] = dictResponseOptionDetails['price']['ask_size'] 
     dictDetailsOutput['Bid'] = dictResponseOptionDetails['price']['bid'] 
     dictDetailsOutput['Bid size'] = dictResponseOptionDetails['price']['bid_size'] 
+    dictDetailsOutput['Mid'] = (dictDetailsOutput['Ask'] + dictDetailsOutput['Bid']) / 2 
     dictDetailsOutput['Option implied volatility'] = dictResponseOptionDetails['stats']['implied_volatility'] 
     dictDetailsOutput['Option moneyness'] = dictDetailsOutput['Option underlying price'] / dictDetailsOutput['Option strike'] 
     dictDetailsOutput['Option days till expiration'] = (dictResponseOptionDetails['option']['expiration'] - dt.datetime.now().date()).days 
@@ -65,17 +65,13 @@ def calcOptionDetails(serPositionsDetailsInput, intrinioApiKey, snowflakeConnect
         dictDetailsOutput['Next dividend ex date'] = 'NA' 
         dictDetailsOutput['Next dividend amount'] = 'NA' 
     else: 
-        if dictResponseDividends['last_ex_dividend_date'] == None: 
+        latestExDividendDate = dictResponseDividends['last_ex_dividend_date'] 
+        if pd.to_datetime(latestExDividendDate, format = '%Y-%m-%d') > dt.datetime.now() - dt.timedelta(days = 1): 
+            dictDetailsOutput['Next dividend ex date'] = dictResponseDividends['next_earnings_date'] 
+            dictDetailsOutput['Next dividend amount'] = dictResponseDividends['ex_dividend'] 
+        else: 
             dictDetailsOutput['Next dividend ex date'] = 'NA' 
             dictDetailsOutput['Next dividend amount'] = 'NA' 
-        else: 
-            latestExDividendDate = dictResponseDividends['last_ex_dividend_date'] 
-            if pd.to_datetime(latestExDividendDate, format = '%Y-%m-%d') > dt.datetime.now() - dt.timedelta(days = 1): 
-                dictDetailsOutput['Next dividend ex date'] = dictResponseDividends['last_ex_dividend_date'] 
-                dictDetailsOutput['Next dividend amount'] = dictResponseDividends['ex_dividend'] 
-            else: 
-                dictDetailsOutput['Next dividend ex date'] = 'NA' 
-                dictDetailsOutput['Next dividend amount'] = 'NA' 
     
     # Option rho to be done later, Rajeev working on the model for option exercise probability 
     # optionRho = TBC 
@@ -109,6 +105,11 @@ def calcOptionDetails(serPositionsDetailsInput, intrinioApiKey, snowflakeConnect
     dfCumuAdjFactors = dfCumuAdjFactors.cumprod() 
     dfCumuAdjFactors = dfCumuAdjFactors.sort_index(ascending = True) 
     dfCumuAdjFactors = dfCumuAdjFactors.shift(-1).ffill() 
+    
+    dfDividendsNonAdj = retrieveIntrinioStockPrices([dictDetailsOutput['Option underlying ticker']], startDate, endDate, 'dividend', snowflakeConnection) 
+    
+    # Calculating the split adjusted dividends 
+    dfDividendsSplitAdj = (dfDividendsNonAdj * dfCumuAdjFactors).dropna(how = 'all') 
     
     # Calculation of the option's expected value 
     lstPercentiles = [0.01 * i for i in range(101)] 
@@ -152,5 +153,18 @@ def calcOptionDetails(serPositionsDetailsInput, intrinioApiKey, snowflakeConnect
         underlyingPriceTradeDate = dfPricesFinal[dfPricesFinal.index <= pd.to_datetime(tradeDate)][dictDetailsOutput['Option underlying ticker']].iloc[-1] 
         if 'Option entry price' in serPositionsDetailsInput.index: 
             dictDetailsOutput['Annualized premium at inception'] = (serPositionsDetailsInput['Option entry price'] / underlyingPriceTradeDate) * (365 / (pd.to_datetime(dictResponseOptionDetails['option']['expiration']).date() - tradeDate).days) 
+    
+    date1yAgo = endDate - dt.timedelta(days = 365) 
+    dividendsLast1y = dfDividendsSplitAdj[dfDividendsSplitAdj.index >= date1yAgo][dictDetailsOutput['Option underlying ticker']].sum() 
+    
+    # Calculating intrinsic value, time value and whether or not the option is likely to be early exercised 
+    # Expected dividend over the next year would be the same as the dividend over the last 1y multiplied by the number of years to maturity 
+    daysToMaturity = (pd.to_datetime(dictDetailsOutput['Option expiry'], format = '%Y-%m-%d') - endDate).days 
+    expectedDividend = dividendsLast1y * daysToMaturity / 365.0 
+    intrinsicValue, timeValue, earlyExercise = computeOptionValues(dictDetailsOutput['Option type'], dictDetailsOutput['Option underlying price'], dictDetailsOutput['Option strike'], dictDetailsOutput['Mid'], expectedDividend) 
+    
+    dictDetailsOutput['Intrinsic value'] = intrinsicValue 
+    dictDetailsOutput['Time value'] = timeValue 
+    dictDetailsOutput['Early exercise'] = earlyExercise 
     
     return dictDetailsOutput 
