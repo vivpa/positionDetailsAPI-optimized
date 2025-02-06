@@ -37,6 +37,12 @@ def calcOptionDetails(serPositionsDetailsInput, intrinioApiKey, snowflakeConnect
     # Methodology to be fixed for deliverableMultiplier - Vivek seeking details from ivol 
     dictDetailsOutput['Deliverable multiplier'] = 100.0 
     
+    dictDetailsOutput['Last price'] = dictResponseOptionDetails['price']['last'] 
+    dictDetailsOutput['Last size'] = dictResponseOptionDetails['price']['last_size'] 
+    dictDetailsOutput['Ask'] = dictResponseOptionDetails['price']['ask'] 
+    dictDetailsOutput['Ask size'] = dictResponseOptionDetails['price']['ask_size'] 
+    dictDetailsOutput['Bid'] = dictResponseOptionDetails['price']['bid'] 
+    dictDetailsOutput['Bid size'] = dictResponseOptionDetails['price']['bid_size'] 
     dictDetailsOutput['Option implied volatility'] = dictResponseOptionDetails['stats']['implied_volatility'] 
     dictDetailsOutput['Option moneyness'] = dictDetailsOutput['Option underlying price'] / dictDetailsOutput['Option strike'] 
     dictDetailsOutput['Option days till expiration'] = (dictResponseOptionDetails['option']['expiration'] - dt.datetime.now().date()).days 
