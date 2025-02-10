@@ -50,4 +50,23 @@ def lambda_handler(event, context):
     except Exception as ex:
         ex_type, ex_value, ex_traceback = sys.exc_info()
 
-        return {"statusCode": 400, "body": str(ex_value)}
+        error_response = {
+            "error": {
+                "type": ex_type.__name__,
+                "message": str(ex_value),
+                "timestamp": datetime.now().isoformat(),
+                "request_id": context.aws_request_id if context else None,
+                "details": {
+                    "service": "position details api",
+                    "stage": "development"  # You might want to make this an env variable
+                }
+            }
+        }
+
+        return {
+            "statusCode": 400,
+            "body": json.dumps(error_response),
+            "headers": {
+                "Content-Type": "application/json"
+            }
+        }
