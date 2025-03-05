@@ -12,8 +12,11 @@ def calcOptionDetails(serPositionsDetailsInput, intrinioApiKey, snowflakeConnect
     stockPriceSource = '' 
     model = '' 
     showExtendedPrice = '' 
+
+    if serPositionsDetailsInput['Ticker symbol'].find(' ') != -1: 
+        tickerRevised = serPositionsDetailsInput['Ticker symbol'].replace(' ', '') 
     
-    responseOptionDetails = intrinio.OptionsApi().get_options_prices_realtime(serPositionsDetailsInput['Ticker symbol'], source = source, stock_price_source = stockPriceSource, model = model, show_extended_price = showExtendedPrice) 
+    responseOptionDetails = intrinio.OptionsApi().get_options_prices_realtime(tickerRevised, source = source, stock_price_source = stockPriceSource, model = model, show_extended_price = showExtendedPrice) 
     dictResponseOptionDetails = responseOptionDetails.to_dict() 
     
     dictDetailsOutput = {} 
