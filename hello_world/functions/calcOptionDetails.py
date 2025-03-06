@@ -41,24 +41,21 @@ def calcOptionDetails(serPositionsDetailsInput, intrinioApiKey, snowflakeConnect
     # Methodology to be fixed for deliverableMultiplier - Vivek seeking details from ivol 
     dictDetailsOutput['Deliverable multiplier'] = 100.0 
     
-    dictDetailsOutput['Last price'] = dictResponseOptionDetails['price']['last'] 
-    dictDetailsOutput['Last size'] = dictResponseOptionDetails['price']['last_size'] 
-    dictDetailsOutput['Ask'] = dictResponseOptionDetails['price']['ask'] 
-    dictDetailsOutput['Ask size'] = dictResponseOptionDetails['price']['ask_size'] 
-    dictDetailsOutput['Bid'] = dictResponseOptionDetails['price']['bid'] 
-    dictDetailsOutput['Bid size'] = dictResponseOptionDetails['price']['bid_size'] 
-    dictDetailsOutput['Mid'] = (dictDetailsOutput['Ask'] + dictDetailsOutput['Bid']) / 2 
-    dictDetailsOutput['Option implied volatility'] = dictResponseOptionDetails['stats']['implied_volatility'] 
-    dictDetailsOutput['Option moneyness'] = dictDetailsOutput['Option underlying price'] / dictDetailsOutput['Option strike'] 
-    dictDetailsOutput['Option days till expiration'] = (dictResponseOptionDetails['option']['expiration'] - dt.datetime.now().date()).days 
-    dictDetailsOutput['Option delta'] = dictResponseOptionDetails['stats']['delta'] 
-    dictDetailsOutput['Option gamma'] = dictResponseOptionDetails['stats']['gamma'] 
-    dictDetailsOutput['Option theta'] = dictResponseOptionDetails['stats']['theta'] 
-    dictDetailsOutput['Option vega'] = dictResponseOptionDetails['stats']['vega'] 
-    if dictDetailsOutput['Option delta'] == None: 
-        dictDetailsOutput['Option OTM probability'] = 'NA' 
-    else: 
-        dictDetailsOutput['Option OTM probability'] = 1 - dictDetailsOutput['Option delta'] 
+    dictDetailsOutput['Last price'] = 'NA' if dictResponseOptionDetails['price']['last'] == None else dictResponseOptionDetails['price']['last'] 
+    dictDetailsOutput['Last size'] = 'NA' if dictResponseOptionDetails['price']['last_size'] == None else dictResponseOptionDetails['price']['last_size'] 
+    dictDetailsOutput['Ask'] = 'NA' if dictResponseOptionDetails['price']['ask'] == None else dictResponseOptionDetails['price']['ask'] 
+    dictDetailsOutput['Ask size'] = 'NA' if dictResponseOptionDetails['price']['ask_size'] == None else dictResponseOptionDetails['price']['ask_size'] 
+    dictDetailsOutput['Bid'] = 'NA' if dictResponseOptionDetails['price']['bid'] == None else dictResponseOptionDetails['price']['bid'] 
+    dictDetailsOutput['Bid size'] = 'NA' if dictResponseOptionDetails['price']['bid_size'] == None else dictResponseOptionDetails['price']['bid_size'] 
+    dictDetailsOutput['Mid'] = 'NA' if (dictDetailsOutput['Ask'] == 'NA' or dictDetailsOutput['Bid'] == 'NA') else (dictDetailsOutput['Ask'] + dictDetailsOutput['Bid']) / 2 
+    dictDetailsOutput['Option implied volatility'] = 'NA' if dictResponseOptionDetails['stats']['implied_volatility'] == None else dictResponseOptionDetails['stats']['implied_volatility'] 
+    dictDetailsOutput['Option moneyness'] = 'NA' if (dictDetailsOutput['Option underlying price'] == 'NA' or dictDetailsOutput['Option strike'] == 'NA') else dictDetailsOutput['Option underlying price'] / dictDetailsOutput['Option strike'] 
+    dictDetailsOutput['Option days till expiration'] = 'NA' if dictResponseOptionDetails['option']['expiration'] == None else (dictResponseOptionDetails['option']['expiration'] - dt.datetime.now().date()).days 
+    dictDetailsOutput['Option delta'] = 'NA' if dictResponseOptionDetails['stats']['delta'] == None else dictResponseOptionDetails['stats']['delta'] 
+    dictDetailsOutput['Option gamma'] = 'NA' if dictResponseOptionDetails['stats']['gamma'] == None else dictResponseOptionDetails['stats']['gamma'] 
+    dictDetailsOutput['Option theta'] = 'NA' if dictResponseOptionDetails['stats']['theta'] == None else dictResponseOptionDetails['stats']['theta'] 
+    dictDetailsOutput['Option vega'] = 'NA' if dictResponseOptionDetails['stats']['vega'] == None else dictResponseOptionDetails['stats']['vega'] 
+    dictDetailsOutput['Option OTM probability'] = 'NA' if dictDetailsOutput['Option delta'] == 'NA' else (1 - dictDetailsOutput['Option delta']) 
     
     responseEarnings = requests.get(f"https://api-v2.intrinio.com/securities/{dictDetailsOutput['Option underlying ticker']}/earnings/latest?api_key={intrinioApiKey}") 
     dictResponseEarnings = responseEarnings.json() 
@@ -137,14 +134,14 @@ def calcOptionDetails(serPositionsDetailsInput, intrinioApiKey, snowflakeConnect
     if serPositionsDetailsInput.loc['Ticker position'] != 'NA': 
         dictDetailsOutput['Total shares deliverable'] = serPositionsDetailsInput['Ticker position'] * dictDetailsOutput['Deliverable multiplier'] 
         dictDetailsOutput['Total option notional'] = dictDetailsOutput['Total shares deliverable'] * dictDetailsOutput['Option underlying price'] 
-        dictDetailsOutput['Total delta'] = 'NA' if dictDetailsOutput['Option delta'] == None else dictDetailsOutput['Option delta'] * dictDetailsOutput['Total shares deliverable'] 
-        dictDetailsOutput['Total gamma'] = 'NA' if dictDetailsOutput['Option gamma'] == None else dictDetailsOutput['Option gamma'] * dictDetailsOutput['Total shares deliverable'] 
-        dictDetailsOutput['Total theta'] = 'NA' if dictDetailsOutput['Option theta'] == None else dictDetailsOutput['Option theta'] * dictDetailsOutput['Total shares deliverable'] 
-        dictDetailsOutput['Total vega'] = 'NA' if dictDetailsOutput['Option vega'] == None else dictDetailsOutput['Option vega'] * dictDetailsOutput['Total shares deliverable'] 
+        dictDetailsOutput['Total delta'] = 'NA' if dictDetailsOutput['Option delta'] == 'NA' else dictDetailsOutput['Option delta'] * dictDetailsOutput['Total shares deliverable'] 
+        dictDetailsOutput['Total gamma'] = 'NA' if dictDetailsOutput['Option gamma'] == 'NA' else dictDetailsOutput['Option gamma'] * dictDetailsOutput['Total shares deliverable'] 
+        dictDetailsOutput['Total theta'] = 'NA' if dictDetailsOutput['Option theta'] == 'NA' else dictDetailsOutput['Option theta'] * dictDetailsOutput['Total shares deliverable'] 
+        dictDetailsOutput['Total vega'] = 'NA' if dictDetailsOutput['Option vega'] == 'NA' else dictDetailsOutput['Option vega'] * dictDetailsOutput['Total shares deliverable'] 
         
         if serPositionsDetailsInput['Underlying position'] != 'NA': 
-            dictDetailsOutput['Coverage ratio'] = dictDetailsOutput['Total shares deliverable'] / serPositionsDetailsInput['Underlying position'] 
-            dictDetailsOutput['Covered call delta'] = 1 - dictDetailsOutput['Coverage ratio'] * dictDetailsOutput['Option delta'] 
+            dictDetailsOutput['Coverage ratio'] = 'NA' if dictDetailsOutput['Total shares deliverable'] == 'NA' else dictDetailsOutput['Total shares deliverable'] / serPositionsDetailsInput['Underlying position'] 
+            dictDetailsOutput['Covered call delta'] = 'NA' if (dictDetailsOutput['Coverage ratio'] == 'NA' or dictDetailsOutput['Coverage ratio'] == 'NA') else (1 - dictDetailsOutput['Coverage ratio'] * dictDetailsOutput['Option delta']) 
             
             # Calculation of beta versus benchmark 
             dfReturns = (dfPricesFinal / dfPricesFinal.shift(1) - 1).dropna() 
@@ -152,24 +149,30 @@ def calcOptionDetails(serPositionsDetailsInput, intrinioApiKey, snowflakeConnect
             
             betaVsBenchmark = dfCovMatrix.loc[dictDetailsOutput['Option underlying ticker'], benchmarkTicker] / dfReturns.std()[benchmarkTicker] ** 2 
             
-            dictDetailsOutput['Covered call beta'] = dictDetailsOutput['Covered call delta'] * betaVsBenchmark 
-            dictDetailsOutput['Total covered call delta'] = dictDetailsOutput['Covered call delta'] * dictDetailsOutput['Total shares deliverable'] 
-            dictDetailsOutput['Total covered call beta'] = dictDetailsOutput['Covered call beta'] * dictDetailsOutput['Total shares deliverable'] 
+            dictDetailsOutput['Covered call beta'] = 'NA' if dictDetailsOutput['Covered call delta'] == 'NA' else dictDetailsOutput['Covered call delta'] * betaVsBenchmark 
+            dictDetailsOutput['Total covered call delta'] = 'NA' if (dictDetailsOutput['Covered call delta'] == 'NA' or dictDetailsOutput['Total shares deliverable'] == 'NA') else dictDetailsOutput['Covered call delta'] * dictDetailsOutput['Total shares deliverable'] 
+            dictDetailsOutput['Total covered call beta'] = 'NA' if (dictDetailsOutput['Covered call beta'] == 'NA' or dictDetailsOutput['Total shares deliverable'] == 'NA') else dictDetailsOutput['Covered call beta'] * dictDetailsOutput['Total shares deliverable'] 
     
     if serPositionsDetailsInput['Option trade date'] != 'NA': 
         tradeDate = pd.to_datetime(serPositionsDetailsInput['Option trade date'], format = '%Y-%m-%d').date() 
         underlyingPriceTradeDate = dfPricesFinal[dfPricesFinal.index <= pd.to_datetime(tradeDate)][dictDetailsOutput['Option underlying ticker']].iloc[-1] 
-        if 'Option entry price' in serPositionsDetailsInput.index: 
-            dictDetailsOutput['Annualized premium at inception'] = (serPositionsDetailsInput['Option entry price'] / underlyingPriceTradeDate) * (365 / (pd.to_datetime(dictResponseOptionDetails['option']['expiration']).date() - tradeDate).days) 
+        if underlyingPriceTradeDate != None: 
+            if 'Option entry price' in serPositionsDetailsInput.index: 
+                dictDetailsOutput['Annualized premium at inception'] = (serPositionsDetailsInput['Option entry price'] / underlyingPriceTradeDate) * (365 / (pd.to_datetime(dictResponseOptionDetails['option']['expiration']).date() - tradeDate).days) 
     
     date1yAgo = endDate - dt.timedelta(days = 365) 
     dividendsLast1y = dfDividendsSplitAdj[dfDividendsSplitAdj.index >= date1yAgo][dictDetailsOutput['Option underlying ticker']].sum() 
     
     # Calculating intrinsic value, time value and whether or not the option is likely to be early exercised 
     # Expected dividend over the next year would be the same as the dividend over the last 1y multiplied by the number of years to maturity 
-    daysToMaturity = (pd.to_datetime(dictDetailsOutput['Option expiry'], format = '%Y-%m-%d') - endDate).days 
-    expectedDividend = dividendsLast1y * daysToMaturity / 365.0 
-    intrinsicValue, timeValue, earlyExercise = computeOptionValues(dictDetailsOutput['Option type'], dictDetailsOutput['Option underlying price'], dictDetailsOutput['Option strike'], dictDetailsOutput['Mid'], expectedDividend) 
+    daysToMaturity = 'NA' if dictDetailsOutput['Option expiry'] == 'NA' else (pd.to_datetime(dictDetailsOutput['Option expiry'], format = '%Y-%m-%d') - endDate).days 
+    expectedDividend = 'NA' if dividendsLast1y == 'NA' else dividendsLast1y * daysToMaturity / 365.0 
+    if dictDetailsOutput['Option type'] == 'NA' or dictDetailsOutput['Option underlying price'] == 'NA' or dictDetailsOutput['Option type'] == 'NA' or dictDetailsOutput['Option strike'] == 'NA' or dictDetailsOutput['Mid'] == 'NA' or expectedDividend == 'NA': 
+        intrinsicValue = 'NA' 
+        timeValue = 'NA' 
+        earlyExercise = 'NA' 
+    else: 
+        intrinsicValue, timeValue, earlyExercise = computeOptionValues(dictDetailsOutput['Option type'], dictDetailsOutput['Option underlying price'], dictDetailsOutput['Option strike'], dictDetailsOutput['Mid'], expectedDividend) 
     
     dictDetailsOutput['Intrinsic value'] = intrinsicValue 
     dictDetailsOutput['Time value'] = timeValue 
