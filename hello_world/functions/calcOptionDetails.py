@@ -55,7 +55,10 @@ def calcOptionDetails(serPositionsDetailsInput, intrinioApiKey, snowflakeConnect
     dictDetailsOutput['Option gamma'] = dictResponseOptionDetails['stats']['gamma'] 
     dictDetailsOutput['Option theta'] = dictResponseOptionDetails['stats']['theta'] 
     dictDetailsOutput['Option vega'] = dictResponseOptionDetails['stats']['vega'] 
-    dictDetailsOutput['Option OTM probability'] = 1 - dictDetailsOutput['Option delta'] 
+    if dictDetailsOutput['Option delta'] == None: 
+        dictDetailsOutput['Option OTM probability'] = 'NA' 
+    else: 
+        dictDetailsOutput['Option OTM probability'] = 1 - dictDetailsOutput['Option delta'] 
     
     responseEarnings = requests.get(f"https://api-v2.intrinio.com/securities/{dictDetailsOutput['Option underlying ticker']}/earnings/latest?api_key={intrinioApiKey}") 
     dictResponseEarnings = responseEarnings.json() 
@@ -134,10 +137,10 @@ def calcOptionDetails(serPositionsDetailsInput, intrinioApiKey, snowflakeConnect
     if serPositionsDetailsInput.loc['Ticker position'] != 'NA': 
         dictDetailsOutput['Total shares deliverable'] = serPositionsDetailsInput['Ticker position'] * dictDetailsOutput['Deliverable multiplier'] 
         dictDetailsOutput['Total option notional'] = dictDetailsOutput['Total shares deliverable'] * dictDetailsOutput['Option underlying price'] 
-        dictDetailsOutput['Total delta'] = dictDetailsOutput['Option delta'] * dictDetailsOutput['Total shares deliverable'] 
-        dictDetailsOutput['Total gamma'] = dictDetailsOutput['Option gamma'] * dictDetailsOutput['Total shares deliverable'] 
-        dictDetailsOutput['Total theta'] = dictDetailsOutput['Option theta'] * dictDetailsOutput['Total shares deliverable'] 
-        dictDetailsOutput['Total vega'] = dictDetailsOutput['Option vega'] * dictDetailsOutput['Total shares deliverable'] 
+        dictDetailsOutput['Total delta'] = 'NA' if dictDetailsOutput['Option delta'] == None else dictDetailsOutput['Option delta'] * dictDetailsOutput['Total shares deliverable'] 
+        dictDetailsOutput['Total gamma'] = 'NA' if dictDetailsOutput['Option gamma'] == None else dictDetailsOutput['Option gamma'] * dictDetailsOutput['Total shares deliverable'] 
+        dictDetailsOutput['Total theta'] = 'NA' if dictDetailsOutput['Option theta'] == None else dictDetailsOutput['Option theta'] * dictDetailsOutput['Total shares deliverable'] 
+        dictDetailsOutput['Total vega'] = 'NA' if dictDetailsOutput['Option vega'] == None else dictDetailsOutput['Option vega'] * dictDetailsOutput['Total shares deliverable'] 
         
         if serPositionsDetailsInput['Underlying position'] != 'NA': 
             dictDetailsOutput['Coverage ratio'] = dictDetailsOutput['Total shares deliverable'] / serPositionsDetailsInput['Underlying position'] 
