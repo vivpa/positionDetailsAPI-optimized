@@ -32,11 +32,21 @@ def calcPositionsDetails(jsonPositionsDetailsInput):
     
     dictPositionsDetailsOutput = {} 
     for eachColumn in dfInstrumentsDetails.columns: 
+        if len(dfInstrumentsDetails.loc['Ticker symbol', eachColumn]) >= 5 and len(dfInstrumentsDetails.loc['Ticker symbol', eachColumn]) <= 6 and dfInstrumentsDetails.loc['Ticker symbol', eachColumn].endswith("X"): 
+            dictPositionsDetailsOutput[eachColumn] = {'Underlying type': 'Mutual fund'} 
+
+            continue 
+        
         # Triggering the relevant algo depending on whether the ticker is for an option or a stock / ETF 
         if dfInstrumentsDetails[eachColumn]['Ticker type'].lower() == 'option': 
             dictPositionsDetailsOutput[eachColumn] = calcOptionDetails(dfInstrumentsDetails[eachColumn], intrinioApiKey, snowflakeConnection) 
         elif dfInstrumentsDetails[eachColumn]['Ticker type'].lower() == 'equity': 
             dictPositionsDetailsOutput[eachColumn] = calcEquityDetails(dfInstrumentsDetails[eachColumn], intrinioApiKey, snowflakeConnection) 
+        else: 
+            if len(dfInstrumentsDetails.loc['Ticker symbol', eachColumn]) >= 5 and len(dfInstrumentsDetails.loc['Ticker symbol', eachColumn]) <= 6 and dfInstrumentsDetails.loc['Ticker symbol', eachColumn].endswith("X"): 
+                dictPositionsDetailsOutput[eachColumn] = {'Underlying type': 'Mutual fund'} 
+            else: 
+                dictPositionsDetailsOutput[eachColumn] = {'Underlying type': 'Other'} 
     
     dictPositionsDetailsOutputRevised = {} 
     for eachKey in dictPositionsDetailsOutput.keys(): 

@@ -99,7 +99,7 @@ def calcOptionDetails(serPositionsDetailsInput, intrinioApiKey, snowflakeConnect
     dfPricesFinal.index = pd.to_datetime(dfPricesFinal.index) 
     dfReturnsData = (dfPricesFinal / dfPricesFinal.shift(optionWeekdaysTillExpiration) - 1).dropna() 
     
-    dfPricesFinalNonAdj, dfAdjFactors = retrieveIntrinioStockPrices([dictDetailsOutput['Option underlying name'], benchmarkTicker], startDate, endDate, 'close', snowflakeConnection) 
+    dfPricesFinalNonAdj, dfAdjFactors = retrieveIntrinioStockPrices([dictDetailsOutput['Option underlying ticker'], benchmarkTicker], startDate, endDate, 'close', snowflakeConnection) 
     dfPricesFinalNonAdj.index = pd.to_datetime(dfPricesFinalNonAdj.index) 
     
     # Rebasing the non-adjusted prices to start from the startDate 
@@ -161,7 +161,7 @@ def calcOptionDetails(serPositionsDetailsInput, intrinioApiKey, snowflakeConnect
                 dictDetailsOutput['Annualized premium at inception'] = (serPositionsDetailsInput['Option entry price'] / underlyingPriceTradeDate) * (365 / (pd.to_datetime(dictResponseOptionDetails['option']['expiration']).date() - tradeDate).days) 
     
     date1yAgo = endDate - dt.timedelta(days = 365) 
-    dividendsLast1y = dfDividendsSplitAdj[dfDividendsSplitAdj.index >= date1yAgo][dictDetailsOutput['Option underlying ticker']].sum() 
+    dividendsLast1y = dfDividendsSplitAdj[dfDividendsSplitAdj.index >= date1yAgo.date()][dictDetailsOutput['Option underlying ticker']].sum() 
     
     # Calculating intrinsic value, time value and whether or not the option is likely to be early exercised 
     # Expected dividend over the next year would be the same as the dividend over the last 1y multiplied by the number of years to maturity 
