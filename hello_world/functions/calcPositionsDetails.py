@@ -92,7 +92,18 @@ def calcPositionsDetails(jsonPositionsDetailsInput):
         elif eachTicker.find('_') != -1: 
             eachTickerModified = eachTicker.split('_')[0] 
         else: 
-            eachTickerModified = eachTicker 
+            # Check if this is an alphanumeric ticker 
+            hasAlphabets = any(eachCharacter.isalpha() for eachCharacter in eachTicker) 
+            hasNumbers = any(eachCharacter.isdigit() for eachCharacter in eachTicker) 
+
+            if hasAlphabets == True and hasNumbers == True: 
+                # If this is an alphanumeric ticker, it means that this is an options ticker 
+                # For an options ticker, the last 15 characters specify the option characteristice (expiry date, call or put, strike price) 
+                # The remaining characters specify the stock 
+                eachTickerModified = eachTicker[0 : len(eachTicker) - 15] 
+            else: 
+                # Otherwise this is a stock ticker 
+                eachTickerModified = eachTicker 
         
         # Triggering the relevant algo depending on whether the ticker is for an option or a stock / ETF 
         if dfInstrumentsDetails[eachColumn]['Ticker type'].lower() == 'option': 

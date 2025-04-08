@@ -140,7 +140,7 @@ def calcOptionDetails(serPositionsDetailsInput, dfPricesSplitAdj, dfPricesFinalN
         elif dictDetailsOutput['Option type'].lower() == 'put': 
             dfReturnsDistribution.loc[eachPercentile, 'Option payoff'] = max(0, dictDetailsOutput['Option strike'] - dfReturnsDistribution.loc[eachPercentile, 'Underlying price']) 
     
-    dictDetailsOutput['Option expected value'] = dfReturnsDistribution.loc[eachPercentile, 'Option payoff'].mean() 
+    dictDetailsOutput['Option expected value'] = dfReturnsDistribution['Option payoff'].mean() 
     
     # Calculating the relevant quantities if the options position is available 
     if serPositionsDetailsInput.loc['Ticker position'] != 'NA': 
