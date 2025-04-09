@@ -129,4 +129,3 @@ def calcPositionsDetails(jsonPositionsDetailsInput):
     jsonPositionsDetailsOutput = json.dumps(lstPositionsDetailsOutput) 
     
     return jsonPositionsDetailsOutput 
-
