@@ -81,7 +81,14 @@ def calcOptionDetails(serPositionsDetailsInput, dfPricesSplitAdj, dfPricesFinalN
     dictDetailsOutput['Ask size'] = dictResponseOptionDetails['price']['ask_size'] 
     dictDetailsOutput['Bid'] = dictResponseOptionDetails['price']['bid'] 
     dictDetailsOutput['Bid size'] = dictResponseOptionDetails['price']['bid_size'] 
-    dictDetailsOutput['Mid'] = (dictDetailsOutput['Ask'] + dictDetailsOutput['Bid']) / 2 
+    if dictDetailsOutput['Ask'] is not None and dictDetailsOutput['Bid'] is not None:
+        dictDetailsOutput['Mid'] = (dictDetailsOutput['Ask'] + dictDetailsOutput['Bid']) / 2
+    elif dictDetailsOutput['Ask'] is not None:
+        dictDetailsOutput['Mid'] = dictDetailsOutput['Ask']
+    elif dictDetailsOutput['Bid'] is not None:
+        dictDetailsOutput['Mid'] = dictDetailsOutput['Bid']
+    else:
+        dictDetailsOutput['Mid'] = None
     dictDetailsOutput['Option implied volatility'] = dictResponseOptionDetails['stats']['implied_volatility'] 
     dictDetailsOutput['Option moneyness'] = dictDetailsOutput['Option underlying price'] / dictDetailsOutput['Option strike'] 
     dictDetailsOutput['Option days till expiration'] = (dictResponseOptionDetails['option']['expiration'] - dt.datetime.now().date()).days 
