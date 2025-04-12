@@ -92,10 +92,10 @@ def calcOptionDetails(serPositionsDetailsInput, dfPricesSplitAdj, dfPricesFinalN
     dictDetailsOutput['Option implied volatility'] = dictResponseOptionDetails['stats']['implied_volatility'] 
     dictDetailsOutput['Option moneyness'] = dictDetailsOutput['Option underlying price'] / dictDetailsOutput['Option strike'] 
     dictDetailsOutput['Option days till expiration'] = (dictResponseOptionDetails['option']['expiration'] - dt.datetime.now().date()).days 
-    dictDetailsOutput['Option delta'] = dictResponseOptionDetails['stats']['delta'] 
-    dictDetailsOutput['Option gamma'] = dictResponseOptionDetails['stats']['gamma'] 
-    dictDetailsOutput['Option theta'] = dictResponseOptionDetails['stats']['theta'] 
-    dictDetailsOutput['Option vega'] = dictResponseOptionDetails['stats']['vega'] 
+    dictDetailsOutput['Option delta'] = dictResponseOptionDetails['stats']['delta'] or 0
+    dictDetailsOutput['Option gamma'] = dictResponseOptionDetails['stats']['gamma'] or 0
+    dictDetailsOutput['Option theta'] = dictResponseOptionDetails['stats']['theta'] or 0
+    dictDetailsOutput['Option vega'] = dictResponseOptionDetails['stats']['vega'] or 0
     dictDetailsOutput['Option OTM probability'] = 1 - dictDetailsOutput['Option delta'] 
     
     responseEarnings = requests.get(f"https://api-v2.intrinio.com/securities/{dictDetailsOutput['Option underlying ticker']}/earnings/latest?api_key={intrinioApiKey}") 
