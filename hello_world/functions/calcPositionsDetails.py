@@ -77,21 +77,28 @@ def calcPositionsDetails(jsonPositionsDetailsInput):
             else: 
                 eachTickerModified = eachTicker 
         
-        if eachPosition['Ticker type'].lower() == 'option': 
-            if benchmarkTicker == eachTickerModified: 
-                dictPositionsDetailsOutput[position_id] = calcOptionDetails(eachPosition, dfPricesSplitAdj[[eachTickerModified]], dfPricesFinalNonAdj[[eachTickerModified]], dfAdjFactors[[eachTickerModified]], dfDividendsSplitAdj[[eachTickerModified]], intrinioApiKey, snowflakeConnection) 
-            else: 
-                dictPositionsDetailsOutput[position_id] = calcOptionDetails(eachPosition, dfPricesSplitAdj[[eachTickerModified, benchmarkTicker]], dfPricesFinalNonAdj[[eachTickerModified, benchmarkTicker]], dfAdjFactors[[eachTickerModified, benchmarkTicker]], dfDividendsSplitAdj[[eachTickerModified, benchmarkTicker]], intrinioApiKey, snowflakeConnection) 
-        elif eachPosition['Ticker type'].lower() == 'equity': 
-            if benchmarkTicker == eachTickerModified: 
-                dictPositionsDetailsOutput[position_id] = calcEquityDetails(eachPosition, dfPricesSplitAdj[[eachTickerModified]], dfPricesFinalNonAdj[[eachTickerModified]], dfAdjFactors[[eachTickerModified]], dfDividendsSplitAdj[[eachTickerModified]], intrinioApiKey, snowflakeConnection) 
-            else: 
-                dictPositionsDetailsOutput[position_id] = calcEquityDetails(eachPosition, dfPricesSplitAdj[[eachTickerModified, benchmarkTicker]], dfPricesFinalNonAdj[[eachTickerModified, benchmarkTicker]], dfAdjFactors[[eachTickerModified, benchmarkTicker]], dfDividendsSplitAdj[[eachTickerModified, benchmarkTicker]], intrinioApiKey, snowflakeConnection) 
-    
-    # Convert each entry to dict and fill NAs
-    dictPositionsDetailsOutputRevised = {
-        key: pd.Series(value).fillna('NA').to_dict() for key, value in dictPositionsDetailsOutput.items()
-    }
+        try:
+            if eachPosition['Ticker type'].lower() == 'option': 
+                if benchmarkTicker == eachTickerModified: 
+                    details = calcOptionDetails(eachPosition, dfPricesSplitAdj[[eachTickerModified]], dfPricesFinalNonAdj[[eachTickerModified]], dfAdjFactors[[eachTickerModified]], dfDividendsSplitAdj[[eachTickerModified]], intrinioApiKey, snowflakeConnection) 
+                else: 
+                    details = calcOptionDetails(eachPosition, dfPricesSplitAdj[[eachTickerModified, benchmarkTicker]], dfPricesFinalNonAdj[[eachTickerModified, benchmarkTicker]], dfAdjFactors[[eachTickerModified, benchmarkTicker]], dfDividendsSplitAdj[[eachTickerModified, benchmarkTicker]], intrinioApiKey, snowflakeConnection) 
+                dictPositionsDetailsOutput[position_id] = pd.Series(details).fillna('NA').to_dict()
+                dictPositionsDetailsOutput[position_id]["detailsAvailable"] = True
+            elif eachPosition['Ticker type'].lower() == 'equity': 
+                if benchmarkTicker == eachTickerModified: 
+                    details = calcEquityDetails(eachPosition, dfPricesSplitAdj[[eachTickerModified]], dfPricesFinalNonAdj[[eachTickerModified]], dfAdjFactors[[eachTickerModified]], dfDividendsSplitAdj[[eachTickerModified]], intrinioApiKey, snowflakeConnection) 
+                else: 
+                    details = calcEquityDetails(eachPosition, dfPricesSplitAdj[[eachTickerModified, benchmarkTicker]], dfPricesFinalNonAdj[[eachTickerModified, benchmarkTicker]], dfAdjFactors[[eachTickerModified, benchmarkTicker]], dfDividendsSplitAdj[[eachTickerModified, benchmarkTicker]], intrinioApiKey, snowflakeConnection) 
+                dictPositionsDetailsOutput[position_id] = pd.Series(details).fillna('NA').to_dict()
+                dictPositionsDetailsOutput[position_id]["detailsAvailable"] = True
+            else:
+                details = None
+                dictPositionsDetailsOutput[position_id]["detailsAvailable"] = True
 
-    jsonPositionsDetailsOutput = json.dumps(dictPositionsDetailsOutputRevised)
+        except Exception as e:
+            # If there's an error or processing fails for a position
+            dictPositionsDetailsOutput[position_id] = {"detailsAvailable": False}
+
+    jsonPositionsDetailsOutput = json.dumps(dictPositionsDetailsOutput)
     return jsonPositionsDetailsOutput
