@@ -19,7 +19,7 @@ def validateRequestBody(parsedBody):
             }
             return False, error_response            
 
-    lstRequiredFields = ['Ticker symbol', 'Ticker type', 'Ticker position', 'Underlying position', 'Option entry price', 'Option trade date'] 
+    lstRequiredFields = ['Ticker symbol', 'Ticker type', 'Ticker position', 'Underlying position', 'Option entry price', 'Option trade date', 'position_detail_id'] 
     
     for eachField in lstRequiredFields: 
         if eachField not in list(pd.DataFrame(parsedBody['dfInstrumentsDetails']).columns): 
