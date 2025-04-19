@@ -141,6 +141,8 @@ def calcPositionsDetails(jsonPositionsDetailsInput):
                 dictPositionsDetailsOutput[position_id] = calcEquityDetails(eachPosition, dfPricesSplitAdj[[eachTickerModified]], dfPricesFinalNonAdj[[eachTickerModified]], dfAdjFactors[[eachTickerModified]], dfDividendsSplitAdj[[eachTickerModified]], intrinioApiKey, snowflakeConnection) 
             else: 
                 dictPositionsDetailsOutput[position_id] = calcEquityDetails(eachPosition, dfPricesSplitAdj[[eachTickerModified, benchmarkTicker]], dfPricesFinalNonAdj[[eachTickerModified, benchmarkTicker]], dfAdjFactors[[eachTickerModified, benchmarkTicker]], dfDividendsSplitAdj[[eachTickerModified, benchmarkTicker]], intrinioApiKey, snowflakeConnection) 
+        elif eachPosition['Ticker type'].lower() == 'other': 
+            dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False } 
     
     # Convert each entry to dict and fill NAs
     dictPositionsDetailsOutputRevised = {

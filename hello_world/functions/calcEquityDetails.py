@@ -11,8 +11,6 @@ from functions.getLatestWeekday import getLatestWeekday
 def calcEquityDetails(serPositionsDetailsInput, dfPricesSplitAdj, dfPricesFinalNonAdj, dfAdjFactors, dfDividendsSplitAdj, intrinioApiKey, snowflakeConnection): 
     benchmarkTicker = 'SPY' 
     
-    dictDetailsOutput = {} 
-    
     # Getting prices for the stock or ETF 
     # If the underlying is a stock or an ETF, prices are obtained through SecurityApi() 
     startDate = (dt.datetime.now() - dt.timedelta(days = 7)).strftime('%Y-%m-%d') 
@@ -24,9 +22,11 @@ def calcEquityDetails(serPositionsDetailsInput, dfPricesSplitAdj, dfPricesFinalN
     try: 
         responseEquityPrices = intrinio.SecurityApi().get_security_stock_prices(serPositionsDetailsInput['Ticker symbol'], start_date = startDate, end_date = endDate, frequency = frequency, page_size = pageSize, next_page = nextPage) 
     except: 
-        return {} 
+        return { "detailsAvailable": False } 
     
     dictResponseEquityPrices = responseEquityPrices.to_dict() 
+    
+    dictDetailsOutput = {} 
     
     dictDetailsOutput['Name'] = dictResponseEquityPrices['security']['name'] 
     
@@ -101,4 +101,6 @@ def calcEquityDetails(serPositionsDetailsInput, dfPricesSplitAdj, dfPricesFinalN
     dictDetailsOutput[f'Split adjustment on {strLastDate}'] = 'None' if splitFactorLastDate == 1 else f'{int((1 / splitFactorLastDate) * 100) / 100} for 1 split' 
     dictDetailsOutput[f'Split adjustment on {strSecondLastDate}'] = 'None' if splitFactorSecondLastDate == 1 else f'{int((1 / splitFactorSecondLastDate) * 100) / 100} for 1 split' 
     
+    dictDetailsOutput['detailsAvailable'] = True 
+
     return dictDetailsOutput 

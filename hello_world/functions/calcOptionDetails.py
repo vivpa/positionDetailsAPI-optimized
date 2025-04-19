@@ -25,43 +25,7 @@ def calcOptionDetails(serPositionsDetailsInput, dictOptionPrices, dfPricesSplitA
         returnNas = True 
     
     if returnNas == True: 
-        return  { 
-                    "Ask": None,
-                    "Bid": None,
-                    "Mid": None,
-                    "Ask size": None,
-                    "Bid size": None,
-                    "Last size": None,
-                    "Last price": None,
-                    "Time value": None,
-                    "Total vega": None,
-                    "Option type": "",
-                    "Option vega": None,
-                    "Total delta": None,
-                    "Total gamma": None,
-                    "Total theta": None,
-                    "Option delta": None,
-                    "Option gamma": None,
-                    "Option theta": None,
-                    "Option expiry": "",
-                    "Option strike": None,
-                    "Early exercise": "",
-                    "Intrinsic value": None,
-                    "Option moneyness": None,
-                    "Next earnings date": "NA",
-                    "Next dividend amount": "NA",
-                    "Next dividend ex date": "NA",
-                    "Option expected value": None,
-                    "Total option notional": None,
-                    "Deliverable multiplier": None,
-                    "Option OTM probability": None,
-                    "Option underlying name": list(dfPricesSplitAdj.columns)[0],
-                    "Option underlying price": None,
-                    "Option underlying ticker": list(dfPricesSplitAdj.columns)[0],
-                    "Total shares deliverable": None,
-                    "Option implied volatility": None,
-                    "Option days till expiration": None, 
-                } 
+        return  { "detailsAvailable": False } 
     
     dictDetailsOutput = {} 
     dictDetailsOutput['Option underlying ticker'] = relevantOptionDetails['option']['ticker'] 
@@ -204,5 +168,7 @@ def calcOptionDetails(serPositionsDetailsInput, dictOptionPrices, dfPricesSplitA
         dictDetailsOutput['Intrinsic value'] = None 
         dictDetailsOutput['Time value'] = None 
         dictDetailsOutput['Early exercise'] = '' 
+    
+    dictDetailsOutput['detailsAvailable'] = True 
     
     return dictDetailsOutput 
