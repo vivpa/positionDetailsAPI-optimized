@@ -9,7 +9,7 @@ from app import lambda_handler
 
 def main():
     # Load the test event
-    with open('events/event_0410_1.json', 'r') as f:
+    with open('events/event_0416_tickers_expired_1w_ago_not_working.json', 'r') as f:
         test_event = json.load(f)
     
     # Create a mock context (since we're not in AWS Lambda)
