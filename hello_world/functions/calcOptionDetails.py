@@ -7,80 +7,47 @@ import requests
 from functions.computeOptionValues import computeOptionValues 
 from functions.getLatestWeekday import getLatestWeekday 
 
-def calcOptionDetails(serPositionsDetailsInput, dfPricesSplitAdj, dfPricesFinalNonAdj, dfAdjFactors, dfDividendsSplitAdj, intrinioApiKey, snowflakeConnection): 
+def calcOptionDetails(serPositionsDetailsInput, dictOptionPrices, dfPricesSplitAdj, dfPricesFinalNonAdj, dfAdjFactors, dfDividendsSplitAdj, intrinioApiKey, snowflakeConnection): 
     benchmarkTicker = 'SPY' 
     
-    # Getting prices for the option 
-    # If the underlying is an option, prices are obtained through OptionsApi() 
-    source = '' 
-    stockPriceSource = '' 
-    model = '' 
-    showExtendedPrice = '' 
+    for eachDictOptionDetails in dictOptionPrices[list(dictOptionPrices.keys())[0]]: 
+        if eachDictOptionDetails['option']['code'] == serPositionsDetailsInput.loc['Ticker symbol']: 
+            relevantOptionDetails = eachDictOptionDetails 
+
+            break 
+        else: 
+            relevantOptionDetails = {} 
     
-    try: 
-        responseOptionDetails = intrinio.OptionsApi().get_options_prices_realtime(serPositionsDetailsInput['Ticker symbol'], source = source, stock_price_source = stockPriceSource, model = model, show_extended_price = showExtendedPrice) 
-    except: 
-        return  { 
-                    "Ask": np.nan,
-                    "Bid": np.nan,
-                    "Mid": np.nan,
-                    "Ask size": np.nan,
-                    "Bid size": np.nan,
-                    "Last size": np.nan,
-                    "Last price": np.nan,
-                    "Time value": np.nan,
-                    "Total vega": np.nan,
-                    "Option type": "",
-                    "Option vega": np.nan,
-                    "Total delta": np.nan,
-                    "Total gamma": np.nan,
-                    "Total theta": np.nan,
-                    "Option delta": np.nan,
-                    "Option gamma": np.nan,
-                    "Option theta": np.nan,
-                    "Option expiry": "",
-                    "Option strike": np.nan,
-                    "Early exercise": "",
-                    "Intrinsic value": np.nan,
-                    "Option moneyness": np.nan,
-                    "Next earnings date": "NA",
-                    "Next dividend amount": "NA",
-                    "Next dividend ex date": "NA",
-                    "Option expected value": np.nan,
-                    "Total option notional": np.nan,
-                    "Deliverable multiplier": np.nan,
-                    "Option OTM probability": np.nan,
-                    "Option underlying name": list(dfPricesSplitAdj.columns)[0],
-                    "Option underlying price": np.nan,
-                    "Option underlying ticker": list(dfPricesSplitAdj.columns)[0],
-                    "Total shares deliverable": np.nan,
-                    "Option implied volatility": np.nan,
-                    "Option days till expiration": np.nan, 
-                } 
+    returnNas = False 
+    if relevantOptionDetails == {}: 
+        returnNas = True 
+    elif relevantOptionDetails['option']['code'] != serPositionsDetailsInput.loc['Ticker symbol']: 
+        returnNas = True 
     
-    dictResponseOptionDetails = responseOptionDetails.to_dict() 
+    if returnNas == True: 
+        return  { "detailsAvailable": False } 
     
     dictDetailsOutput = {} 
-    dictDetailsOutput['Option underlying ticker'] = dictResponseOptionDetails['option']['ticker'] 
+    dictDetailsOutput['Option underlying ticker'] = relevantOptionDetails['option']['ticker'] 
     
     responseUnderlyingDetails = intrinio.SecurityApi().get_security_by_id(dictDetailsOutput['Option underlying ticker']) 
     dictResponseUnderlyingDetails = responseUnderlyingDetails.to_dict() 
     
     dictDetailsOutput['Option underlying name'] = dictResponseUnderlyingDetails['name'] 
-    dictDetailsOutput['Option underlying price'] = dictResponseOptionDetails['stats']['underlying_price'] 
-    dictDetailsOutput['Option type'] = dictResponseOptionDetails['option']['type'] 
-    dictDetailsOutput['Option expiry'] = pd.to_datetime(dictResponseOptionDetails['option']['expiration']).strftime('%Y-%m-%d') 
-    dictDetailsOutput['Option strike'] = dictResponseOptionDetails['option']['strike'] 
+    dictDetailsOutput['Option underlying price'] = relevantOptionDetails['stats']['underlying_price'] 
+    dictDetailsOutput['Option type'] = relevantOptionDetails['option']['type'] 
+    dictDetailsOutput['Option expiry'] = pd.to_datetime(relevantOptionDetails['option']['expiration']).strftime('%Y-%m-%d') 
+    dictDetailsOutput['Option strike'] = relevantOptionDetails['option']['strike'] 
     
     # Methodology to be fixed for deliverableMultiplier - Vivek seeking details from ivol 
     dictDetailsOutput['Deliverable multiplier'] = 100.0 
     
-    dictDetailsOutput['Last price'] = dictResponseOptionDetails['price']['last'] 
-    dictDetailsOutput['Last size'] = dictResponseOptionDetails['price']['last_size'] 
-    dictDetailsOutput['Ask'] = dictResponseOptionDetails['price']['ask'] 
-    dictDetailsOutput['Ask size'] = dictResponseOptionDetails['price']['ask_size'] 
-    dictDetailsOutput['Bid'] = dictResponseOptionDetails['price']['bid'] 
-    dictDetailsOutput['Bid size'] = dictResponseOptionDetails['price']['bid_size'] 
+    dictDetailsOutput['Last price'] = relevantOptionDetails['price']['last'] 
+    dictDetailsOutput['Last size'] = relevantOptionDetails['price']['last_size'] 
+    dictDetailsOutput['Ask'] = relevantOptionDetails['price']['ask'] 
+    dictDetailsOutput['Ask size'] = relevantOptionDetails['price']['ask_size'] 
+    dictDetailsOutput['Bid'] = relevantOptionDetails['price']['bid'] 
+    dictDetailsOutput['Bid size'] = relevantOptionDetails['price']['bid_size'] 
     if dictDetailsOutput['Ask'] is not None and dictDetailsOutput['Bid'] is not None:
         dictDetailsOutput['Mid'] = (dictDetailsOutput['Ask'] + dictDetailsOutput['Bid']) / 2
     elif dictDetailsOutput['Ask'] is not None:
@@ -89,14 +56,14 @@ def calcOptionDetails(serPositionsDetailsInput, dfPricesSplitAdj, dfPricesFinalN
         dictDetailsOutput['Mid'] = dictDetailsOutput['Bid']
     else:
         dictDetailsOutput['Mid'] = None
-    dictDetailsOutput['Option implied volatility'] = dictResponseOptionDetails['stats']['implied_volatility'] 
+    dictDetailsOutput['Option implied volatility'] = relevantOptionDetails['stats']['implied_volatility'] 
     dictDetailsOutput['Option moneyness'] = dictDetailsOutput['Option underlying price'] / dictDetailsOutput['Option strike'] 
-    dictDetailsOutput['Option days till expiration'] = (dictResponseOptionDetails['option']['expiration'] - dt.datetime.now().date()).days 
-    dictDetailsOutput['Option delta'] = dictResponseOptionDetails['stats']['delta'] or 0
-    dictDetailsOutput['Option gamma'] = dictResponseOptionDetails['stats']['gamma'] or 0
-    dictDetailsOutput['Option theta'] = dictResponseOptionDetails['stats']['theta'] or 0
-    dictDetailsOutput['Option vega'] = dictResponseOptionDetails['stats']['vega'] or 0
-    dictDetailsOutput['Option OTM probability'] = 1 - dictDetailsOutput['Option delta'] 
+    dictDetailsOutput['Option days till expiration'] = (pd.to_datetime(relevantOptionDetails['option']['expiration'], format = '%Y-%m-%d') - dt.datetime.now()).days 
+    dictDetailsOutput['Option delta'] = relevantOptionDetails['stats']['delta'] or None 
+    dictDetailsOutput['Option gamma'] = relevantOptionDetails['stats']['gamma'] or None 
+    dictDetailsOutput['Option theta'] = relevantOptionDetails['stats']['theta'] or None 
+    dictDetailsOutput['Option vega'] = relevantOptionDetails['stats']['vega'] or None 
+    dictDetailsOutput['Option OTM probability'] = (1 - dictDetailsOutput['Option delta']) if dictDetailsOutput['Option delta'] != None else None 
     
     responseEarnings = requests.get(f"https://api-v2.intrinio.com/securities/{dictDetailsOutput['Option underlying ticker']}/earnings/latest?api_key={intrinioApiKey}") 
     dictResponseEarnings = responseEarnings.json() 
@@ -152,15 +119,15 @@ def calcOptionDetails(serPositionsDetailsInput, dfPricesSplitAdj, dfPricesFinalN
     # Calculating the relevant quantities if the options position is available 
     if serPositionsDetailsInput.loc['Ticker position'] != 'NA': 
         dictDetailsOutput['Total shares deliverable'] = serPositionsDetailsInput['Ticker position'] * dictDetailsOutput['Deliverable multiplier'] 
-        dictDetailsOutput['Total option notional'] = dictDetailsOutput['Total shares deliverable'] * dictDetailsOutput['Option underlying price'] 
-        dictDetailsOutput['Total delta'] = dictDetailsOutput['Option delta'] * dictDetailsOutput['Total shares deliverable'] 
-        dictDetailsOutput['Total gamma'] = dictDetailsOutput['Option gamma'] * dictDetailsOutput['Total shares deliverable'] 
-        dictDetailsOutput['Total theta'] = dictDetailsOutput['Option theta'] * dictDetailsOutput['Total shares deliverable'] 
-        dictDetailsOutput['Total vega'] = dictDetailsOutput['Option vega'] * dictDetailsOutput['Total shares deliverable'] 
+        dictDetailsOutput['Total option notional'] = (dictDetailsOutput['Option underlying price'] * dictDetailsOutput['Total shares deliverable']) if dictDetailsOutput['Option underlying price'] != None else None 
+        dictDetailsOutput['Total delta'] = (dictDetailsOutput['Option delta'] * dictDetailsOutput['Total shares deliverable']) if dictDetailsOutput['Option delta'] != None else None 
+        dictDetailsOutput['Total gamma'] = (dictDetailsOutput['Option gamma'] * dictDetailsOutput['Total shares deliverable']) if dictDetailsOutput['Option gamma'] != None else None 
+        dictDetailsOutput['Total theta'] = (dictDetailsOutput['Option theta'] * dictDetailsOutput['Total shares deliverable']) if dictDetailsOutput['Option theta'] != None else None 
+        dictDetailsOutput['Total vega'] = (dictDetailsOutput['Option vega'] * dictDetailsOutput['Total shares deliverable']) if dictDetailsOutput['Option vega'] != None else None 
         
         if serPositionsDetailsInput['Underlying position'] != 'NA': 
             dictDetailsOutput['Coverage ratio'] = dictDetailsOutput['Total shares deliverable'] / serPositionsDetailsInput['Underlying position'] 
-            dictDetailsOutput['Covered call delta'] = 1 - dictDetailsOutput['Coverage ratio'] * dictDetailsOutput['Option delta'] 
+            dictDetailsOutput['Covered call delta'] = (1 - dictDetailsOutput['Coverage ratio'] * dictDetailsOutput['Option delta']) if dictDetailsOutput['Option delta'] != None else None 
             
             # Calculation of beta versus benchmark 
             dfReturns = (dfPricesSplitAdj / dfPricesSplitAdj.shift(1) - 1).dropna() 
@@ -168,15 +135,15 @@ def calcOptionDetails(serPositionsDetailsInput, dfPricesSplitAdj, dfPricesFinalN
             
             betaVsBenchmark = dfCovMatrix.loc[dictDetailsOutput['Option underlying ticker'], benchmarkTicker] / dfReturns.std()[benchmarkTicker] ** 2 
             
-            dictDetailsOutput['Covered call beta'] = dictDetailsOutput['Covered call delta'] * betaVsBenchmark 
-            dictDetailsOutput['Total covered call delta'] = dictDetailsOutput['Covered call delta'] * dictDetailsOutput['Total shares deliverable'] 
-            dictDetailsOutput['Total covered call beta'] = dictDetailsOutput['Covered call beta'] * dictDetailsOutput['Total shares deliverable'] 
+            dictDetailsOutput['Covered call beta'] = (dictDetailsOutput['Covered call delta'] * betaVsBenchmark) if dictDetailsOutput['Covered call delta'] != None else None 
+            dictDetailsOutput['Total covered call delta'] = (dictDetailsOutput['Covered call delta'] * dictDetailsOutput['Total shares deliverable']) if dictDetailsOutput['Covered call delta'] != None else None 
+            dictDetailsOutput['Total covered call beta'] = (dictDetailsOutput['Covered call beta'] * dictDetailsOutput['Total shares deliverable']) if dictDetailsOutput['Covered call beta'] != None else None 
     
     if serPositionsDetailsInput['Option trade date'] != 'NA': 
         tradeDate = pd.to_datetime(serPositionsDetailsInput['Option trade date'], format = '%Y-%m-%d').date() 
         underlyingPriceTradeDate = dfPricesSplitAdj[dfPricesSplitAdj.index <= pd.to_datetime(tradeDate)][dictDetailsOutput['Option underlying ticker']].iloc[-1] 
         if 'Option entry price' in serPositionsDetailsInput.index: 
-            dictDetailsOutput['Annualized premium at inception'] = (serPositionsDetailsInput['Option entry price'] / underlyingPriceTradeDate) * (365 / (pd.to_datetime(dictResponseOptionDetails['option']['expiration']).date() - tradeDate).days) 
+            dictDetailsOutput['Annualized premium at inception'] = (serPositionsDetailsInput['Option entry price'] / underlyingPriceTradeDate) * (365 / (pd.to_datetime(relevantOptionDetails['option']['expiration']).date() - tradeDate).days) 
     
     date1yAgo = endDate - dt.timedelta(days = 365) 
     dividendsLast1y = dfDividendsSplitAdj[dfDividendsSplitAdj.index >= date1yAgo][dictDetailsOutput['Option underlying ticker']].sum() 
@@ -185,10 +152,23 @@ def calcOptionDetails(serPositionsDetailsInput, dfPricesSplitAdj, dfPricesFinalN
     # Expected dividend over the next year would be the same as the dividend over the last 1y multiplied by the number of years to maturity 
     daysToMaturity = (pd.to_datetime(dictDetailsOutput['Option expiry'], format = '%Y-%m-%d') - endDate).days 
     expectedDividend = dividendsLast1y * daysToMaturity / 365.0 
-    intrinsicValue, timeValue, earlyExercise = computeOptionValues(dictDetailsOutput['Option type'], dictDetailsOutput['Option underlying price'], dictDetailsOutput['Option strike'], dictDetailsOutput['Mid'], expectedDividend) 
+
+    if dictDetailsOutput['Mid'] != None or dictDetailsOutput['Last price'] != None or dictDetailsOutput['Bid'] != None: 
+        if dictDetailsOutput['Mid'] != None: 
+            intrinsicValue, timeValue, earlyExercise = computeOptionValues(dictDetailsOutput['Option type'], dictDetailsOutput['Option underlying price'], dictDetailsOutput['Option strike'], dictDetailsOutput['Mid'], expectedDividend) 
+        elif dictDetailsOutput['Last price'] != None: 
+            intrinsicValue, timeValue, earlyExercise = computeOptionValues(dictDetailsOutput['Option type'], dictDetailsOutput['Option underlying price'], dictDetailsOutput['Option strike'], dictDetailsOutput['Last price'], expectedDividend) 
+        elif dictDetailsOutput['Bid'] != None: 
+            intrinsicValue, timeValue, earlyExercise = computeOptionValues(dictDetailsOutput['Option type'], dictDetailsOutput['Option underlying price'], dictDetailsOutput['Option strike'], dictDetailsOutput['Bid'], expectedDividend) 
+        
+        dictDetailsOutput['Intrinsic value'] = intrinsicValue 
+        dictDetailsOutput['Time value'] = timeValue 
+        dictDetailsOutput['Early exercise'] = earlyExercise 
+    else: 
+        dictDetailsOutput['Intrinsic value'] = None 
+        dictDetailsOutput['Time value'] = None 
+        dictDetailsOutput['Early exercise'] = '' 
     
-    dictDetailsOutput['Intrinsic value'] = intrinsicValue 
-    dictDetailsOutput['Time value'] = timeValue 
-    dictDetailsOutput['Early exercise'] = earlyExercise 
+    dictDetailsOutput['detailsAvailable'] = True 
     
     return dictDetailsOutput 
