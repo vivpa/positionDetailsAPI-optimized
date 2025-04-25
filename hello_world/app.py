@@ -1,6 +1,7 @@
 import json
 from datetime import datetime
 import sys
+import re
 
 # Import functions to do things 
 from functions.calcPositionsDetails import calcPositionsDetails 
@@ -12,6 +13,11 @@ class first_call:
         jsonPortfolioStatsOutput = calcPositionsDetails(jsonPortfolioStatsInput) 
 
         return jsonPortfolioStatsOutput 
+    
+def mask_api_key_in_url(message):
+    if "api_key=" in message:
+        return re.sub(r"(api_key=)[^&]+", r"\1****", message)
+    return message
 
 
 def lambda_handler(event, context): 
@@ -49,11 +55,11 @@ def lambda_handler(event, context):
 
     except Exception as ex:
         ex_type, ex_value, ex_traceback = sys.exc_info()
-
+        message = mask_api_key_in_url(str(ex_value))
         error_response = {
             "error": {
                 "type": ex_type.__name__,
-                "message": str(ex_value),
+                "message": message,
                 "timestamp": datetime.now().isoformat(),
                 "request_id": context.aws_request_id if context else None,
                 "details": {
