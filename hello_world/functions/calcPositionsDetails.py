@@ -19,16 +19,22 @@ def calcPositionsDetails(jsonPositionsDetailsInput):
     
     lstAllTickers = [dfInstrumentsDetails.loc['Ticker symbol', eachColumn] for eachColumn in dfInstrumentsDetails.columns] 
 
+    i = 0
+
     lstAllTickersRevised = [] 
     for eachTicker in lstAllTickers: 
         if ' ' in eachTicker: 
             eachTickerModified = eachTicker.split(' ')[0] 
         elif '_' in eachTicker: 
             eachTickerModified = eachTicker.split('_')[0] 
+        elif dfInstrumentsDetails.loc['Ticker type'].iloc[i].lower() == 'option':
+            eachTickerModified = eachTicker[: (len(eachTicker) - 15)]
         else: 
             eachTickerModified = eachTicker 
         
         lstAllTickersRevised.append(eachTickerModified)
+
+        i = i + 1
     
     lstAllTickersRevised = list(np.unique(lstAllTickersRevised)) 
     
