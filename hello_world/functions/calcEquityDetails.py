@@ -26,6 +26,8 @@ def calcEquityDetails(serPositionsDetailsInput, dfPricesSplitAdj, dfPricesFinalN
     
     dictResponseEquityPrices = responseEquityPrices.to_dict() 
     
+    print(f"Response for {serPositionsDetailsInput.loc['Ticker symbol']}: {responseEquityPrices}") 
+
     dictDetailsOutput = {} 
     
     dictDetailsOutput['Name'] = dictResponseEquityPrices['security']['name'] 

@@ -18,6 +18,8 @@ def calcOptionDetails(serPositionsDetailsInput, dictOptionPrices, dfPricesSplitA
         else: 
             relevantOptionDetails = {} 
     
+    print(f"Response for {serPositionsDetailsInput.loc['Ticker symbol']}: {relevantOptionDetails}") 
+
     returnNas = False 
     if relevantOptionDetails == {}: 
         returnNas = True 
