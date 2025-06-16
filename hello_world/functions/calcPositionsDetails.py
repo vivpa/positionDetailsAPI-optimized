@@ -11,6 +11,7 @@ from functions.calcOptionDetails import calcOptionDetails
 from functions.getLatestWeekday import getLatestWeekday 
 from functions.getSecretsIntrinioApiKey import getSecretsIntrinioApiKey 
 from functions.getSecretsSnowflake import getSecretsSnowflake 
+from functions.readCsvFromS3 import readCsvFromS3 
 from functions.retrieveIntrinioStockPricesAndDividends import retrieveIntrinioStockPricesAndDividends 
 
 def calcPositionsDetails(jsonPositionsDetailsInput): 
@@ -18,7 +19,7 @@ def calcPositionsDetails(jsonPositionsDetailsInput):
     dfInstrumentsDetails = pd.DataFrame(dictPositionsDetailsInput['dfInstrumentsDetails']).T 
     
     lstAllTickers = [dfInstrumentsDetails.loc['Ticker symbol', eachColumn] for eachColumn in dfInstrumentsDetails.columns] 
-
+    
     i = 0 
     lstAllTickersRevised = [] 
     for eachTicker in lstAllTickers: 
@@ -36,7 +37,7 @@ def calcPositionsDetails(jsonPositionsDetailsInput):
         i = i + 1 
     
     lstAllTickersRevised = list(np.unique(lstAllTickersRevised)) 
-    
+
     benchmarkTicker = 'SPY' 
     if benchmarkTicker not in lstAllTickersRevised: 
         lstAllTickersRevised.append(benchmarkTicker)
@@ -44,6 +45,47 @@ def calcPositionsDetails(jsonPositionsDetailsInput):
     intrinioApiKey = getSecretsIntrinioApiKey() 
     intrinio.ApiClient().set_api_key(intrinioApiKey) 
     intrinio.ApiClient().allow_retries(True)
+    
+    # strAllTickersRevised = ','.join(lstAllTickersRevised) 
+    # # f'https://api-v2.intrinio.com/securities/search?query={strAllTickersRevised}&api_key={intrinioApiKey}' 
+    
+    # url = "https://api-v2.intrinio.com/securities/search"
+    # params = {
+    #     "query": strAllTickersRevised, 
+    #     "api_key": intrinioApiKey, 
+    #     # "source": "uscomp", 
+    # }
+
+    # try:
+    #     response = requests.get(url, params=params)
+    #     response.raise_for_status()  # Raises an error for bad status codes
+    #     data = response.json()
+        
+    #     # Extract and print ticker and name for each security
+    #     for security in data.get("securities", []):
+    #         print(f"Ticker: {security['ticker']}, Name: {security['name']}")
+    # except requests.exceptions.RequestException as e:
+    #     print(f"Error: {e}")
+    
+    # url = "https://api-v2.intrinio.com/securities/snapshots"
+    # params = {
+    #     "tickers": strAllTickersRevised,
+    #     "api_key": intrinioApiKey,
+    #     # "source": "iex"  # Optional: specify 'iex', 'multi_exchange', or 'delayed_sip'
+    # }
+
+    # try:
+    #     response = requests.get(url, params=params)
+    #     response.raise_for_status()  # Raises an error for bad status codes
+    #     data = response.json()
+        
+    #     # Extract and print ticker and last price for each security
+    #     for snapshot in data.get("snapshots", []):
+    #         ticker = snapshot.get("security", {}).get("ticker", "N/A")
+    #         last_price = snapshot.get("market", {}).get("last_price", "N/A")
+    #         print(f"Ticker: {ticker}, Last Price: ${last_price}")
+    # except requests.exceptions.RequestException as e:
+    #     print(f"Error: {e}")
     
     strLoginName, strPassword, strWarehouse, strAccount = getSecretsSnowflake() 
     ctx = snowflake.connector.connect(user=strLoginName, password=strPassword, warehouse="BACKTEST_LARGE_WH", account=strAccount) 
@@ -115,6 +157,33 @@ def calcPositionsDetails(jsonPositionsDetailsInput):
         delta = eachPosition.get("stats", {}).get("delta") 
         print(f"{contract}: last = {lastPrice}, delta = {delta}") 
 
+    # Extracting the dividends and earnings details for all tickers 
+    bucket = 'plasmaartifact' 
+    folder = 'security_classification' 
+    filenameEarnings = 'wsh_earnings.csv' 
+    filenameDividends = 'wsh_dividends.csv' 
+
+    lstRowsEarnings = readCsvFromS3(bucket, folder, filenameEarnings) 
+    lstRowsDividends = readCsvFromS3(bucket, folder, filenameDividends) 
+
+    dfEarnings = pd.DataFrame(lstRowsEarnings[1:], columns = lstRowsEarnings[0]) 
+    dfDividends = pd.DataFrame(lstRowsDividends[1:], columns = lstRowsDividends[0]) 
+
+    dfEarningsSelectedTickers = pd.DataFrame() 
+    dfDividendsSelectedTickers = pd.DataFrame() 
+    for eachTicker in lstAllTickersRevised: 
+        if eachTicker in list(dfEarnings['TICKER']): 
+            if dfEarningsSelectedTickers.empty: 
+                dfEarningsSelectedTickers = dfEarnings[dfEarnings['TICKER'] == eachTicker] 
+            else: 
+                dfEarningsSelectedTickers = pd.concat([dfEarningsSelectedTickers, dfEarnings[dfEarnings['TICKER'] == eachTicker]], ignore_index = True) 
+            
+        if eachTicker in list(dfDividends['TICKER']): 
+            if dfDividendsSelectedTickers.empty: 
+                dfDividendsSelectedTickers = dfDividends[dfDividends['TICKER'] == eachTicker] 
+            else: 
+                dfDividendsSelectedTickers = pd.concat([dfDividendsSelectedTickers, dfDividends[dfDividends['TICKER'] == eachTicker]], ignore_index = True) 
+    
     # Calculating the position details for all the tickers 
     dictPositionsDetailsOutput = {} 
     for eachColumn in dfInstrumentsDetails.columns: 
@@ -138,14 +207,14 @@ def calcPositionsDetails(jsonPositionsDetailsInput):
         
         if eachPosition['Ticker type'].lower() == 'option': 
             if benchmarkTicker == eachTickerModified: 
-                dictPositionsDetailsOutput[position_id] = calcOptionDetails(eachPosition, dictOptionPrices, dfPricesSplitAdj[[eachTickerModified]], dfPricesFinalNonAdj[[eachTickerModified]], dfAdjFactors[[eachTickerModified]], dfDividendsSplitAdj[[eachTickerModified]], intrinioApiKey, snowflakeConnection) 
+                dictPositionsDetailsOutput[position_id] = calcOptionDetails(eachPosition, dictOptionPrices, dfPricesSplitAdj[[eachTickerModified]], dfPricesFinalNonAdj[[eachTickerModified]], dfAdjFactors[[eachTickerModified]], dfDividendsSplitAdj[[eachTickerModified]], dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection) 
             else: 
-                dictPositionsDetailsOutput[position_id] = calcOptionDetails(eachPosition, dictOptionPrices, dfPricesSplitAdj[[eachTickerModified, benchmarkTicker]], dfPricesFinalNonAdj[[eachTickerModified, benchmarkTicker]], dfAdjFactors[[eachTickerModified, benchmarkTicker]], dfDividendsSplitAdj[[eachTickerModified, benchmarkTicker]], intrinioApiKey, snowflakeConnection) 
+                dictPositionsDetailsOutput[position_id] = calcOptionDetails(eachPosition, dictOptionPrices, dfPricesSplitAdj[[eachTickerModified, benchmarkTicker]], dfPricesFinalNonAdj[[eachTickerModified, benchmarkTicker]], dfAdjFactors[[eachTickerModified, benchmarkTicker]], dfDividendsSplitAdj[[eachTickerModified, benchmarkTicker]], dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection) 
         elif eachPosition['Ticker type'].lower() == 'equity': 
             if benchmarkTicker == eachTickerModified: 
-                dictPositionsDetailsOutput[position_id] = calcEquityDetails(eachPosition, dfPricesSplitAdj[[eachTickerModified]], dfPricesFinalNonAdj[[eachTickerModified]], dfAdjFactors[[eachTickerModified]], dfDividendsSplitAdj[[eachTickerModified]], intrinioApiKey, snowflakeConnection) 
+                dictPositionsDetailsOutput[position_id] = calcEquityDetails(eachPosition, dfPricesSplitAdj[[eachTickerModified]], dfPricesFinalNonAdj[[eachTickerModified]], dfAdjFactors[[eachTickerModified]], dfDividendsSplitAdj[[eachTickerModified]], dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection) 
             else: 
-                dictPositionsDetailsOutput[position_id] = calcEquityDetails(eachPosition, dfPricesSplitAdj[[eachTickerModified, benchmarkTicker]], dfPricesFinalNonAdj[[eachTickerModified, benchmarkTicker]], dfAdjFactors[[eachTickerModified, benchmarkTicker]], dfDividendsSplitAdj[[eachTickerModified, benchmarkTicker]], intrinioApiKey, snowflakeConnection) 
+                dictPositionsDetailsOutput[position_id] = calcEquityDetails(eachPosition, dfPricesSplitAdj[[eachTickerModified, benchmarkTicker]], dfPricesFinalNonAdj[[eachTickerModified, benchmarkTicker]], dfAdjFactors[[eachTickerModified, benchmarkTicker]], dfDividendsSplitAdj[[eachTickerModified, benchmarkTicker]], dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection) 
         elif eachPosition['Ticker type'].lower() == 'other': 
             dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False } 
     
