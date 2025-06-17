@@ -7,7 +7,7 @@ import requests
 from functions.computeOptionValues import computeOptionValues 
 from functions.getLatestWeekday import getLatestWeekday 
 
-def calcOptionDetails(serPositionsDetailsInput, dictOptionPrices, dfPricesSplitAdj, dfPricesFinalNonAdj, dfAdjFactors, dfDividendsSplitAdj, dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection): 
+def calcOptionDetails(serPositionsDetailsInput, dictOptionPrices, dfPricesSplitAdj, dfPricesFinalNonAdj, dfAdjFactors, dfDividendsSplitAdj, lstPositionNamesAndPrices, dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection): 
     benchmarkTicker = 'SPY' 
     
     for eachDictOptionDetails in dictOptionPrices[list(dictOptionPrices.keys())[0]]: 
@@ -32,10 +32,13 @@ def calcOptionDetails(serPositionsDetailsInput, dictOptionPrices, dfPricesSplitA
     dictDetailsOutput = {} 
     dictDetailsOutput['Option underlying ticker'] = relevantOptionDetails['option']['ticker'] 
     
-    responseUnderlyingDetails = intrinio.SecurityApi().get_security_by_id(dictDetailsOutput['Option underlying ticker']) 
-    dictResponseUnderlyingDetails = responseUnderlyingDetails.to_dict() 
+    for eachItem in lstPositionNamesAndPrices: 
+        if eachItem['security']['ticker'] == dictDetailsOutput['Option underlying ticker']: 
+            relevantUnderlyingNameAndPrices = eachItem 
+
+            break 
     
-    dictDetailsOutput['Option underlying name'] = dictResponseUnderlyingDetails['name'] 
+    dictDetailsOutput['Option underlying name'] = relevantUnderlyingNameAndPrices['security']['name'] 
     dictDetailsOutput['Option underlying price'] = relevantOptionDetails['stats']['underlying_price'] 
     dictDetailsOutput['Option type'] = relevantOptionDetails['option']['type'] 
     dictDetailsOutput['Option expiry'] = pd.to_datetime(relevantOptionDetails['option']['expiration']).strftime('%Y-%m-%d') 
@@ -67,13 +70,6 @@ def calcOptionDetails(serPositionsDetailsInput, dictOptionPrices, dfPricesSplitA
     dictDetailsOutput['Option vega'] = relevantOptionDetails['stats']['vega'] or None 
     dictDetailsOutput['Option OTM probability'] = (1 - dictDetailsOutput['Option delta']) if dictDetailsOutput['Option delta'] != None else None 
     
-    # responseEarnings = requests.get(f"https://api-v2.intrinio.com/securities/{dictDetailsOutput['Option underlying ticker']}/earnings/latest?api_key={intrinioApiKey}") 
-    # dictResponseEarnings = responseEarnings.json() 
-    # if 'error' in dictResponseEarnings.keys(): 
-    #     dictDetailsOutput['Next earnings date'] = 'NA' 
-    # else: 
-    #     dictDetailsOutput['Next earnings date'] = dictResponseEarnings['next_earnings_date'] 
-    
     if not dfEarningsSelectedTickers.empty: 
         if dictDetailsOutput['Option underlying ticker'] not in list(dfEarningsSelectedTickers['TICKER']): 
             dictDetailsOutput['Next earnings date'] = 'NA' 
@@ -82,20 +78,6 @@ def calcOptionDetails(serPositionsDetailsInput, dictOptionPrices, dfPricesSplitA
     else: 
         dictDetailsOutput['Next earnings date'] = 'NA' 
 
-    # responseDividends = requests.get(f"https://api-v2.intrinio.com/securities/{dictDetailsOutput['Option underlying ticker']}/dividends/latest?api_key={intrinioApiKey}") 
-    # dictResponseDividends = responseDividends.json() 
-    # if 'error' in dictResponseDividends.keys(): 
-    #     dictDetailsOutput['Next dividend ex date'] = 'NA' 
-    #     dictDetailsOutput['Next dividend amount'] = 'NA' 
-    # else: 
-    #     latestExDividendDate = dictResponseDividends['last_ex_dividend_date'] 
-    #     if pd.to_datetime(latestExDividendDate, format = '%Y-%m-%d') > dt.datetime.now() - dt.timedelta(days = 1): 
-    #         dictDetailsOutput['Next dividend ex date'] = dictResponseDividends['next_earnings_date'] 
-    #         dictDetailsOutput['Next dividend amount'] = dictResponseDividends['ex_dividend'] 
-    #     else: 
-    #         dictDetailsOutput['Next dividend ex date'] = 'NA' 
-    #         dictDetailsOutput['Next dividend amount'] = 'NA' 
-    
     if not dfDividendsSelectedTickers.empty: 
         if dictDetailsOutput['Option underlying ticker'] not in list(dfDividendsSelectedTickers['TICKER']): 
             dictDetailsOutput['Next dividend ex date'] = 'NA' 

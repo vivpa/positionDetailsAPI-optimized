@@ -46,49 +46,8 @@ def calcPositionsDetails(jsonPositionsDetailsInput):
     intrinio.ApiClient().set_api_key(intrinioApiKey) 
     intrinio.ApiClient().allow_retries(True)
     
-    # strAllTickersRevised = ','.join(lstAllTickersRevised) 
-    # # f'https://api-v2.intrinio.com/securities/search?query={strAllTickersRevised}&api_key={intrinioApiKey}' 
-    
-    # url = "https://api-v2.intrinio.com/securities/search"
-    # params = {
-    #     "query": strAllTickersRevised, 
-    #     "api_key": intrinioApiKey, 
-    #     # "source": "uscomp", 
-    # }
-
-    # try:
-    #     response = requests.get(url, params=params)
-    #     response.raise_for_status()  # Raises an error for bad status codes
-    #     data = response.json()
-        
-    #     # Extract and print ticker and name for each security
-    #     for security in data.get("securities", []):
-    #         print(f"Ticker: {security['ticker']}, Name: {security['name']}")
-    # except requests.exceptions.RequestException as e:
-    #     print(f"Error: {e}")
-    
-    # url = "https://api-v2.intrinio.com/securities/snapshots"
-    # params = {
-    #     "tickers": strAllTickersRevised,
-    #     "api_key": intrinioApiKey,
-    #     # "source": "iex"  # Optional: specify 'iex', 'multi_exchange', or 'delayed_sip'
-    # }
-
-    # try:
-    #     response = requests.get(url, params=params)
-    #     response.raise_for_status()  # Raises an error for bad status codes
-    #     data = response.json()
-        
-    #     # Extract and print ticker and last price for each security
-    #     for snapshot in data.get("snapshots", []):
-    #         ticker = snapshot.get("security", {}).get("ticker", "N/A")
-    #         last_price = snapshot.get("market", {}).get("last_price", "N/A")
-    #         print(f"Ticker: {ticker}, Last Price: ${last_price}")
-    # except requests.exceptions.RequestException as e:
-    #     print(f"Error: {e}")
-    
     strLoginName, strPassword, strWarehouse, strAccount = getSecretsSnowflake() 
-    ctx = snowflake.connector.connect(user=strLoginName, password=strPassword, warehouse="BACKTEST_LARGE_WH", account=strAccount) 
+    ctx = snowflake.connector.connect(user = strLoginName, password = strPassword, warehouse = "BACKTEST_LARGE_WH", account = strAccount) 
     snowflakeConnection = ctx.cursor() 
     
     numOfYearsForDataExtraction = 5 
@@ -105,7 +64,7 @@ def calcPositionsDetails(jsonPositionsDetailsInput):
     dfPricesSplitAdj.index = pd.to_datetime(dfPricesSplitAdj.index) 
     dfPricesFinalNonAdj.index = pd.to_datetime(dfPricesFinalNonAdj.index) 
     
-    dfCumuAdjFactors = dfAdjFactors.sort_index(ascending=False).cumprod().sort_index(ascending=True).shift(-1).ffill() 
+    dfCumuAdjFactors = dfAdjFactors.sort_index(ascending = False).cumprod().sort_index(ascending = True).shift(-1).ffill() 
     dfDividendsSplitAdj = (dfDividendsNonAdj * dfCumuAdjFactors).dropna(how='all') 
     
     # Collating all the option tickers 
@@ -114,6 +73,27 @@ def calcPositionsDetails(jsonPositionsDetailsInput):
         if dfInstrumentsDetails.loc['Ticker type', eachColumn].lower() == 'option': 
             lstOptionTickers = lstOptionTickers + [dfInstrumentsDetails.loc['Ticker symbol', eachColumn]] 
     
+    strAllTickersRevised = ','.join(lstAllTickersRevised) 
+    
+    url = f"https://api-v2.intrinio.com/stock_exchanges/USCOMP/quote?tickers={strAllTickersRevised}&api_key={intrinioApiKey}" 
+    try:
+        response = requests.get(url)
+        response.raise_for_status()  # Raises an error for bad status codes
+        data = response.json() 
+        
+        # Extract and print ticker and last price for each security
+        for eachItem in data['quotes']: 
+            ticker = eachItem['security']['ticker'] 
+            stockName = eachItem['security']['name'] 
+            lastPrice = eachItem['last'] 
+            print(f"Ticker: {ticker}; Name: {stockName}; Last price: ${lastPrice}") 
+        
+        lstPositionNamesAndPrices = data['quotes'] 
+    except: 
+        print(f"Could not extract quotes data for {strAllTickersRevised}") 
+        
+        lstPositionNamesAndPrices = [] 
+
     # Getting Intrinio details for all the option tickers in bulk 
     # Build request 
     url = "https://api-v2.intrinio.com/options/prices/realtime/batch"
@@ -207,14 +187,14 @@ def calcPositionsDetails(jsonPositionsDetailsInput):
         
         if eachPosition['Ticker type'].lower() == 'option': 
             if benchmarkTicker == eachTickerModified: 
-                dictPositionsDetailsOutput[position_id] = calcOptionDetails(eachPosition, dictOptionPrices, dfPricesSplitAdj[[eachTickerModified]], dfPricesFinalNonAdj[[eachTickerModified]], dfAdjFactors[[eachTickerModified]], dfDividendsSplitAdj[[eachTickerModified]], dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection) 
+                dictPositionsDetailsOutput[position_id] = calcOptionDetails(eachPosition, dictOptionPrices, dfPricesSplitAdj[[eachTickerModified]], dfPricesFinalNonAdj[[eachTickerModified]], dfAdjFactors[[eachTickerModified]], dfDividendsSplitAdj[[eachTickerModified]], lstPositionNamesAndPrices, dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection) 
             else: 
-                dictPositionsDetailsOutput[position_id] = calcOptionDetails(eachPosition, dictOptionPrices, dfPricesSplitAdj[[eachTickerModified, benchmarkTicker]], dfPricesFinalNonAdj[[eachTickerModified, benchmarkTicker]], dfAdjFactors[[eachTickerModified, benchmarkTicker]], dfDividendsSplitAdj[[eachTickerModified, benchmarkTicker]], dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection) 
+                dictPositionsDetailsOutput[position_id] = calcOptionDetails(eachPosition, dictOptionPrices, dfPricesSplitAdj[[eachTickerModified, benchmarkTicker]], dfPricesFinalNonAdj[[eachTickerModified, benchmarkTicker]], dfAdjFactors[[eachTickerModified, benchmarkTicker]], dfDividendsSplitAdj[[eachTickerModified, benchmarkTicker]], lstPositionNamesAndPrices, dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection) 
         elif eachPosition['Ticker type'].lower() == 'equity': 
             if benchmarkTicker == eachTickerModified: 
-                dictPositionsDetailsOutput[position_id] = calcEquityDetails(eachPosition, dfPricesSplitAdj[[eachTickerModified]], dfPricesFinalNonAdj[[eachTickerModified]], dfAdjFactors[[eachTickerModified]], dfDividendsSplitAdj[[eachTickerModified]], dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection) 
+                dictPositionsDetailsOutput[position_id] = calcEquityDetails(eachPosition, dfPricesSplitAdj[[eachTickerModified]], dfPricesFinalNonAdj[[eachTickerModified]], dfAdjFactors[[eachTickerModified]], dfDividendsSplitAdj[[eachTickerModified]], lstPositionNamesAndPrices, dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection) 
             else: 
-                dictPositionsDetailsOutput[position_id] = calcEquityDetails(eachPosition, dfPricesSplitAdj[[eachTickerModified, benchmarkTicker]], dfPricesFinalNonAdj[[eachTickerModified, benchmarkTicker]], dfAdjFactors[[eachTickerModified, benchmarkTicker]], dfDividendsSplitAdj[[eachTickerModified, benchmarkTicker]], dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection) 
+                dictPositionsDetailsOutput[position_id] = calcEquityDetails(eachPosition, dfPricesSplitAdj[[eachTickerModified, benchmarkTicker]], dfPricesFinalNonAdj[[eachTickerModified, benchmarkTicker]], dfAdjFactors[[eachTickerModified, benchmarkTicker]], dfDividendsSplitAdj[[eachTickerModified, benchmarkTicker]], lstPositionNamesAndPrices, dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection) 
         elif eachPosition['Ticker type'].lower() == 'other': 
             dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False } 
     

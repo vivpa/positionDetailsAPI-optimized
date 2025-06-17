@@ -8,47 +8,45 @@ from functions.calcRsi import calcRsi
 from functions.calcImpliedVol import calcImpliedVol 
 from functions.getLatestWeekday import getLatestWeekday 
 
-def calcEquityDetails(serPositionsDetailsInput, dfPricesSplitAdj, dfPricesFinalNonAdj, dfAdjFactors, dfDividendsSplitAdj, dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection): 
+def calcEquityDetails(serPositionsDetailsInput, dfPricesSplitAdj, dfPricesFinalNonAdj, dfAdjFactors, dfDividendsSplitAdj, lstPositionNamesAndPrices, dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection): 
     benchmarkTicker = 'SPY' 
     
-    # Getting prices for the stock or ETF 
-    # If the underlying is a stock or an ETF, prices are obtained through SecurityApi() 
-    startDate = (dt.datetime.now() - dt.timedelta(days = 7)).strftime('%Y-%m-%d') 
-    endDate = dt.datetime.now().strftime('%Y-%m-%d') 
-    frequency = 'daily' 
-    pageSize = 100 
-    nextPage = '' 
-    
-    try: 
-        responseEquityPrices = intrinio.SecurityApi().get_security_stock_prices(serPositionsDetailsInput['Ticker symbol'], start_date = startDate, end_date = endDate, frequency = frequency, page_size = pageSize, next_page = nextPage) 
-    except: 
-        return { "detailsAvailable": False } 
-    
-    dictResponseEquityPrices = responseEquityPrices.to_dict() 
-    
-    print(f"Response for {serPositionsDetailsInput.loc['Ticker symbol']}: {responseEquityPrices}") 
+    for eachItem in lstPositionNamesAndPrices: 
+        if eachItem['security']['ticker'] == serPositionsDetailsInput.loc['Ticker symbol']: 
+            relevantPositionNameAndPrices = eachItem 
 
+            break 
+    
+    # # Getting prices for the stock or ETF 
+    # # If the underlying is a stock or an ETF, prices are obtained through SecurityApi() 
+    # startDate = (dt.datetime.now() - dt.timedelta(days = 7)).strftime('%Y-%m-%d') 
+    # endDate = dt.datetime.now().strftime('%Y-%m-%d') 
+    # frequency = 'daily' 
+    # pageSize = 100 
+    # nextPage = '' 
+    
+    # try: 
+    #     responseEquityPrices = intrinio.SecurityApi().get_security_stock_prices(serPositionsDetailsInput['Ticker symbol'], start_date = startDate, end_date = endDate, frequency = frequency, page_size = pageSize, next_page = nextPage) 
+    # except: 
+    #     return { "detailsAvailable": False } 
+    
+    # dictResponseEquityPrices = responseEquityPrices.to_dict() 
+    
+    # print(f"Response for {serPositionsDetailsInput.loc['Ticker symbol']}: {responseEquityPrices}") 
+
+    # dfStockPrices = pd.DataFrame(dictResponseEquityPrices['stock_prices']) 
+    # maxDate = dfStockPrices['date'].max() 
+    
     dictDetailsOutput = {} 
     
-    dictDetailsOutput['Name'] = dictResponseEquityPrices['security']['name'] 
-    
-    dfStockPrices = pd.DataFrame(dictResponseEquityPrices['stock_prices']) 
-    maxDate = dfStockPrices['date'].max() 
-    
-    dictDetailsOutput['Last price'] = dfStockPrices[dfStockPrices['date'] == maxDate]['close'].iloc[0] 
-    dictDetailsOutput['Open'] = dfStockPrices[dfStockPrices['date'] == maxDate]['open'].iloc[0] 
-    dictDetailsOutput['High'] = dfStockPrices[dfStockPrices['date'] == maxDate]['high'].iloc[0] 
-    dictDetailsOutput['Low'] = dfStockPrices[dfStockPrices['date'] == maxDate]['low'].iloc[0] 
-    dictDetailsOutput['Price change'] = dfStockPrices[dfStockPrices['date'] == maxDate]['percent_change'].iloc[0] 
-    dictDetailsOutput['52 week high'] = dfStockPrices[dfStockPrices['date'] == maxDate]['fifty_two_week_high'].iloc[0] 
-    dictDetailsOutput['52 week low'] = dfStockPrices[dfStockPrices['date'] == maxDate]['fifty_two_week_low'].iloc[0] 
-    
-    # responseEarnings = requests.get(f"https://api-v2.intrinio.com/securities/{serPositionsDetailsInput['Ticker symbol']}/earnings/latest?api_key={intrinioApiKey}") 
-    # dictResponseEarnings = responseEarnings.json() 
-    # if 'error' in dictResponseEarnings.keys(): 
-    #     dictDetailsOutput['Next earnings date'] = 'NA' 
-    # else: 
-    #     dictDetailsOutput['Next earnings date'] = dictResponseEarnings['next_earnings_date'] 
+    dictDetailsOutput['Name'] = relevantPositionNameAndPrices['security']['name'] 
+    dictDetailsOutput['Last price'] = relevantPositionNameAndPrices['last'] 
+    dictDetailsOutput['Open'] = relevantPositionNameAndPrices['open'] 
+    dictDetailsOutput['High'] = relevantPositionNameAndPrices['high'] 
+    dictDetailsOutput['Low'] = relevantPositionNameAndPrices['low'] 
+    dictDetailsOutput['Price change'] = relevantPositionNameAndPrices['change_percent'] 
+    dictDetailsOutput['52 week high'] = relevantPositionNameAndPrices['eod_fifty_two_week_high'] 
+    dictDetailsOutput['52 week low'] = relevantPositionNameAndPrices['eod_fifty_two_week_low'] 
     
     if not dfEarningsSelectedTickers.empty: 
         if serPositionsDetailsInput['Ticker symbol'] not in list(dfEarningsSelectedTickers['TICKER']): 
@@ -57,20 +55,6 @@ def calcEquityDetails(serPositionsDetailsInput, dfPricesSplitAdj, dfPricesFinalN
             dictDetailsOutput['Next earnings date'] = dfEarningsSelectedTickers[dfEarningsSelectedTickers['TICKER'] == serPositionsDetailsInput['Ticker symbol']]['NEXT_EARNINGS_DATE'].iloc[0] 
     else: 
         dictDetailsOutput['Next earnings date'] = 'NA' 
-    
-    # responseDividends = requests.get(f"https://api-v2.intrinio.com/securities/{serPositionsDetailsInput['Ticker symbol']}/dividends/latest?api_key={intrinioApiKey}") 
-    # dictResponseDividends = responseDividends.json() 
-    # if 'error' in dictResponseDividends.keys(): 
-    #     dictDetailsOutput['Next dividend ex date'] = 'NA' 
-    #     dictDetailsOutput['Next dividend amount'] = 'NA' 
-    # else: 
-    #     latestExDividendDate = dictResponseDividends['last_ex_dividend_date'] 
-    #     if pd.to_datetime(latestExDividendDate, format = '%Y-%m-%d') > dt.datetime.now() - dt.timedelta(days = 1): 
-    #         dictDetailsOutput['Next dividend ex date'] = dictResponseDividends['last_ex_dividend_date'] 
-    #         dictDetailsOutput['Next dividend amount'] = dictResponseDividends['ex_dividend'] 
-    #     else: 
-    #         dictDetailsOutput['Next dividend ex date'] = 'NA' 
-    #         dictDetailsOutput['Next dividend amount'] = 'NA' 
     
     if not dfDividendsSelectedTickers.empty: 
         if serPositionsDetailsInput['Ticker symbol'] not in list(dfDividendsSelectedTickers['TICKER']): 
