@@ -74,11 +74,14 @@ def calcOptionDetails(serPositionsDetailsInput, dictOptionPrices, dfPricesSplitA
     # else: 
     #     dictDetailsOutput['Next earnings date'] = dictResponseEarnings['next_earnings_date'] 
     
-    if dictDetailsOutput['Option underlying ticker'] not in list(dfEarningsSelectedTickers['TICKER']): 
-        dictDetailsOutput['Next earnings date'] = 'NA' 
+    if not dfEarningsSelectedTickers.empty: 
+        if dictDetailsOutput['Option underlying ticker'] not in list(dfEarningsSelectedTickers['TICKER']): 
+            dictDetailsOutput['Next earnings date'] = 'NA' 
+        else: 
+            dictDetailsOutput['Next earnings date'] = dfEarningsSelectedTickers[dfEarningsSelectedTickers['TICKER'] == dictDetailsOutput['Option underlying ticker']]['NEXT_EARNINGS_DATE'].iloc[0] 
     else: 
-        dictDetailsOutput['Next earnings date'] = dfEarningsSelectedTickers[dfEarningsSelectedTickers['TICKER'] == dictDetailsOutput['Option underlying ticker']]['NEXT_EARNINGS_DATE'].iloc[0] 
-    
+        dictDetailsOutput['Next earnings date'] = 'NA' 
+
     # responseDividends = requests.get(f"https://api-v2.intrinio.com/securities/{dictDetailsOutput['Option underlying ticker']}/dividends/latest?api_key={intrinioApiKey}") 
     # dictResponseDividends = responseDividends.json() 
     # if 'error' in dictResponseDividends.keys(): 
@@ -93,17 +96,21 @@ def calcOptionDetails(serPositionsDetailsInput, dictOptionPrices, dfPricesSplitA
     #         dictDetailsOutput['Next dividend ex date'] = 'NA' 
     #         dictDetailsOutput['Next dividend amount'] = 'NA' 
     
-    if dictDetailsOutput['Option underlying ticker'] not in list(dfDividendsSelectedTickers['TICKER']): 
-        dictDetailsOutput['Next dividend ex date'] = 'NA' 
-        dictDetailsOutput['Next dividend amount'] = 'NA' 
-    else: 
-        latestExDividendDate = dfDividendsSelectedTickers[dfDividendsSelectedTickers['TICKER'] == dictDetailsOutput['Option underlying ticker']]['LAST_EX_DIVIDEND_DATE'].iloc[0] 
-        if pd.to_datetime(latestExDividendDate, format = '%Y-%m-%d') > dt.datetime.now() - dt.timedelta(days = 1): 
-            dictDetailsOutput['Next dividend ex date'] = latestExDividendDate 
-            dictDetailsOutput['Next dividend amount'] = float(dfDividendsSelectedTickers[dfDividendsSelectedTickers['TICKER'] == dictDetailsOutput['Option underlying ticker']]['EX_DIVIDEND'].iloc[0]) if dfDividendsSelectedTickers[dfDividendsSelectedTickers['TICKER'] == dictDetailsOutput['Option underlying ticker']]['EX_DIVIDEND'].iloc[0] != '' else 0.0 
-        else: 
+    if not dfDividendsSelectedTickers.empty: 
+        if dictDetailsOutput['Option underlying ticker'] not in list(dfDividendsSelectedTickers['TICKER']): 
             dictDetailsOutput['Next dividend ex date'] = 'NA' 
             dictDetailsOutput['Next dividend amount'] = 'NA' 
+        else: 
+            latestExDividendDate = dfDividendsSelectedTickers[dfDividendsSelectedTickers['TICKER'] == dictDetailsOutput['Option underlying ticker']]['LAST_EX_DIVIDEND_DATE'].iloc[0] 
+            if pd.to_datetime(latestExDividendDate, format = '%Y-%m-%d') > dt.datetime.now() - dt.timedelta(days = 1): 
+                dictDetailsOutput['Next dividend ex date'] = latestExDividendDate 
+                dictDetailsOutput['Next dividend amount'] = float(dfDividendsSelectedTickers[dfDividendsSelectedTickers['TICKER'] == dictDetailsOutput['Option underlying ticker']]['EX_DIVIDEND'].iloc[0]) if dfDividendsSelectedTickers[dfDividendsSelectedTickers['TICKER'] == dictDetailsOutput['Option underlying ticker']]['EX_DIVIDEND'].iloc[0] != '' else 0.0 
+            else: 
+                dictDetailsOutput['Next dividend ex date'] = 'NA' 
+                dictDetailsOutput['Next dividend amount'] = 'NA' 
+    else: 
+        dictDetailsOutput['Next dividend ex date'] = 'NA' 
+        dictDetailsOutput['Next dividend amount'] = 'NA' 
     
     # Option rho to be done later, Rajeev working on the model for option exercise probability 
     # optionRho = TBC 

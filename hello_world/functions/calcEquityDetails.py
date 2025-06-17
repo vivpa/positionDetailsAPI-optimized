@@ -50,10 +50,13 @@ def calcEquityDetails(serPositionsDetailsInput, dfPricesSplitAdj, dfPricesFinalN
     # else: 
     #     dictDetailsOutput['Next earnings date'] = dictResponseEarnings['next_earnings_date'] 
     
-    if serPositionsDetailsInput['Ticker symbol'] not in list(dfEarningsSelectedTickers['TICKER']): 
-        dictDetailsOutput['Next earnings date'] = 'NA' 
+    if not dfEarningsSelectedTickers.empty: 
+        if serPositionsDetailsInput['Ticker symbol'] not in list(dfEarningsSelectedTickers['TICKER']): 
+            dictDetailsOutput['Next earnings date'] = 'NA' 
+        else: 
+            dictDetailsOutput['Next earnings date'] = dfEarningsSelectedTickers[dfEarningsSelectedTickers['TICKER'] == serPositionsDetailsInput['Ticker symbol']]['NEXT_EARNINGS_DATE'].iloc[0] 
     else: 
-        dictDetailsOutput['Next earnings date'] = dfEarningsSelectedTickers[dfEarningsSelectedTickers['TICKER'] == serPositionsDetailsInput['Ticker symbol']]['NEXT_EARNINGS_DATE'].iloc[0] 
+        dictDetailsOutput['Next earnings date'] = 'NA' 
     
     # responseDividends = requests.get(f"https://api-v2.intrinio.com/securities/{serPositionsDetailsInput['Ticker symbol']}/dividends/latest?api_key={intrinioApiKey}") 
     # dictResponseDividends = responseDividends.json() 
@@ -69,17 +72,21 @@ def calcEquityDetails(serPositionsDetailsInput, dfPricesSplitAdj, dfPricesFinalN
     #         dictDetailsOutput['Next dividend ex date'] = 'NA' 
     #         dictDetailsOutput['Next dividend amount'] = 'NA' 
     
-    if serPositionsDetailsInput['Ticker symbol'] not in list(dfDividendsSelectedTickers['TICKER']): 
-        dictDetailsOutput['Next dividend ex date'] = 'NA' 
-        dictDetailsOutput['Next dividend amount'] = 'NA' 
-    else: 
-        latestExDividendDate = dfDividendsSelectedTickers[dfDividendsSelectedTickers['TICKER'] == serPositionsDetailsInput['Ticker symbol']]['LAST_EX_DIVIDEND_DATE'].iloc[0] 
-        if pd.to_datetime(latestExDividendDate, format = '%Y-%m-%d') > dt.datetime.now() - dt.timedelta(days = 1): 
-            dictDetailsOutput['Next dividend ex date'] = latestExDividendDate 
-            dictDetailsOutput['Next dividend amount'] = float(dfDividendsSelectedTickers[dfDividendsSelectedTickers['TICKER'] == serPositionsDetailsInput['Ticker symbol']]['EX_DIVIDEND'].iloc[0]) if dfDividendsSelectedTickers[dfDividendsSelectedTickers['TICKER'] == serPositionsDetailsInput['Ticker symbol']]['EX_DIVIDEND'].iloc[0] != '' else 0.0 
-        else: 
+    if not dfDividendsSelectedTickers.empty: 
+        if serPositionsDetailsInput['Ticker symbol'] not in list(dfDividendsSelectedTickers['TICKER']): 
             dictDetailsOutput['Next dividend ex date'] = 'NA' 
             dictDetailsOutput['Next dividend amount'] = 'NA' 
+        else: 
+            latestExDividendDate = dfDividendsSelectedTickers[dfDividendsSelectedTickers['TICKER'] == serPositionsDetailsInput['Ticker symbol']]['LAST_EX_DIVIDEND_DATE'].iloc[0] 
+            if pd.to_datetime(latestExDividendDate, format = '%Y-%m-%d') > dt.datetime.now() - dt.timedelta(days = 1): 
+                dictDetailsOutput['Next dividend ex date'] = latestExDividendDate 
+                dictDetailsOutput['Next dividend amount'] = float(dfDividendsSelectedTickers[dfDividendsSelectedTickers['TICKER'] == serPositionsDetailsInput['Ticker symbol']]['EX_DIVIDEND'].iloc[0]) if dfDividendsSelectedTickers[dfDividendsSelectedTickers['TICKER'] == serPositionsDetailsInput['Ticker symbol']]['EX_DIVIDEND'].iloc[0] != '' else 0.0 
+            else: 
+                dictDetailsOutput['Next dividend ex date'] = 'NA' 
+                dictDetailsOutput['Next dividend amount'] = 'NA' 
+    else: 
+        dictDetailsOutput['Next dividend ex date'] = 'NA' 
+        dictDetailsOutput['Next dividend amount'] = 'NA' 
     
     endDate = dt.datetime.now() 
     endDate = getLatestWeekday(endDate) 
