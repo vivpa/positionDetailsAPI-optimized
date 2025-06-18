@@ -62,7 +62,7 @@ def calcOptionDetails(serPositionsDetailsInput, dictOptionPrices, dfPricesSplitA
     else:
         dictDetailsOutput['Mid'] = None
     dictDetailsOutput['Option implied volatility'] = relevantOptionDetails['stats']['implied_volatility'] 
-    dictDetailsOutput['Option moneyness'] = dictDetailsOutput['Option underlying price'] / dictDetailsOutput['Option strike'] 
+    dictDetailsOutput['Option moneyness'] = dictDetailsOutput['Option strike'] / dictDetailsOutput['Option underlying price'] 
     dictDetailsOutput['Option days till expiration'] = (pd.to_datetime(relevantOptionDetails['option']['expiration'], format = '%Y-%m-%d') - dt.datetime.now()).days 
     dictDetailsOutput['Option delta'] = relevantOptionDetails['stats']['delta'] or None 
     dictDetailsOutput['Option gamma'] = relevantOptionDetails['stats']['gamma'] or None 
@@ -100,12 +100,6 @@ def calcOptionDetails(serPositionsDetailsInput, dictOptionPrices, dfPricesSplitA
     
     # Calculation of option exercise value 
     optionWeekdaysTillExpiration = int(dictDetailsOutput['Option days till expiration'] * 5 / 7) 
-    
-    numOfYearsForDataExtraction = 5 
-    endDate = dt.datetime.now() 
-    endDate = getLatestWeekday(endDate) 
-    startDate = endDate - dt.timedelta(days = numOfYearsForDataExtraction * 365) 
-    startDate = getLatestWeekday(startDate) 
     
     dfReturnsData = (dfPricesSplitAdj / dfPricesSplitAdj.shift(optionWeekdaysTillExpiration) - 1).dropna() 
     
@@ -153,6 +147,8 @@ def calcOptionDetails(serPositionsDetailsInput, dictOptionPrices, dfPricesSplitA
         if 'Option entry price' in serPositionsDetailsInput.index: 
             dictDetailsOutput['Annualized premium at inception'] = (serPositionsDetailsInput['Option entry price'] / underlyingPriceTradeDate) * (365 / (pd.to_datetime(relevantOptionDetails['option']['expiration']).date() - tradeDate).days) 
     
+    endDate = dt.datetime.now() 
+    endDate = getLatestWeekday(endDate) 
     date1yAgo = endDate - dt.timedelta(days = 365) 
     dividendsLast1y = dfDividendsSplitAdj[dfDividendsSplitAdj.index >= date1yAgo][dictDetailsOutput['Option underlying ticker']].sum() 
     
