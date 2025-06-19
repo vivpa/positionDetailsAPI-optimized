@@ -11,11 +11,16 @@ from functions.getLatestWeekday import getLatestWeekday
 def calcEquityDetails(serPositionsDetailsInput, dfPricesSplitAdj, dfPricesFinalNonAdj, dfAdjFactors, dfDividendsSplitAdj, lstPositionNamesAndPrices, dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection): 
     benchmarkTicker = 'SPY' 
     
-    for eachItem in lstPositionNamesAndPrices: 
-        if eachItem['security']['ticker'] == serPositionsDetailsInput.loc['Ticker symbol']: 
-            relevantPositionNameAndPrices = eachItem 
+    if len(lstPositionNamesAndPrices) > 0: 
+        for eachItem in lstPositionNamesAndPrices: 
+            if eachItem['security']['ticker'] == serPositionsDetailsInput.loc['Ticker symbol']: 
+                relevantPositionNameAndPrices = eachItem 
 
-            break 
+                break 
+            else: 
+                relevantPositionNameAndPrices = {} 
+    else: 
+        relevantPositionNameAndPrices = {} 
     
     # # Getting prices for the stock or ETF 
     # # If the underlying is a stock or an ETF, prices are obtained through SecurityApi() 
@@ -39,15 +44,25 @@ def calcEquityDetails(serPositionsDetailsInput, dfPricesSplitAdj, dfPricesFinalN
     
     dictDetailsOutput = {} 
     
-    dictDetailsOutput['Name'] = relevantPositionNameAndPrices['security']['name'] 
-    dictDetailsOutput['Last price'] = relevantPositionNameAndPrices['last'] 
-    dictDetailsOutput['Open'] = relevantPositionNameAndPrices['open'] 
-    dictDetailsOutput['High'] = relevantPositionNameAndPrices['high'] 
-    dictDetailsOutput['Low'] = relevantPositionNameAndPrices['low'] 
-    dictDetailsOutput['Price change'] = relevantPositionNameAndPrices['change_percent'] 
-    dictDetailsOutput['52 week high'] = relevantPositionNameAndPrices['eod_fifty_two_week_high'] 
-    dictDetailsOutput['52 week low'] = relevantPositionNameAndPrices['eod_fifty_two_week_low'] 
-    
+    if relevantPositionNameAndPrices != {}: 
+        dictDetailsOutput['Name'] = relevantPositionNameAndPrices['security']['name'] 
+        dictDetailsOutput['Last price'] = relevantPositionNameAndPrices['last'] 
+        dictDetailsOutput['Open'] = relevantPositionNameAndPrices['open'] 
+        dictDetailsOutput['High'] = relevantPositionNameAndPrices['high'] 
+        dictDetailsOutput['Low'] = relevantPositionNameAndPrices['low'] 
+        dictDetailsOutput['Price change'] = relevantPositionNameAndPrices['change_percent'] 
+        dictDetailsOutput['52 week high'] = relevantPositionNameAndPrices['eod_fifty_two_week_high'] 
+        dictDetailsOutput['52 week low'] = relevantPositionNameAndPrices['eod_fifty_two_week_low'] 
+    else: 
+        dictDetailsOutput['Name'] = '' 
+        dictDetailsOutput['Last price'] = None 
+        dictDetailsOutput['Open'] = None 
+        dictDetailsOutput['High'] = None 
+        dictDetailsOutput['Low'] = None 
+        dictDetailsOutput['Price change'] = None 
+        dictDetailsOutput['52 week high'] = None 
+        dictDetailsOutput['52 week low'] = None 
+
     if not dfEarningsSelectedTickers.empty: 
         if serPositionsDetailsInput['Ticker symbol'] not in list(dfEarningsSelectedTickers['TICKER']): 
             dictDetailsOutput['Next earnings date'] = 'NA' 
@@ -102,7 +117,7 @@ def calcEquityDetails(serPositionsDetailsInput, dfPricesSplitAdj, dfPricesFinalN
     date1yAgo = pd.to_datetime(endDate, format = '%Y-%m-%d') - dt.timedelta(days = 365) 
     dividends1y = dfDividendsSplitAdj[dfDividendsSplitAdj.index >= date1yAgo][serPositionsDetailsInput['Ticker symbol']].sum() 
     
-    dictDetailsOutput['1y dividend yield'] = dividends1y / dictDetailsOutput['Last price'] 
+    dictDetailsOutput['1y dividend yield'] = None if dictDetailsOutput['Last price'] == None else (dividends1y / dictDetailsOutput['Last price']) 
     
     strLastDate = dfAdjFactors.sort_index(ascending = True).index[-1].strftime('%Y-%m-%d') 
     strSecondLastDate = dfAdjFactors.sort_index(ascending = True).index[-2].strftime('%Y-%m-%d') 

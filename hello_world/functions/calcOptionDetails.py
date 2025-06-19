@@ -10,7 +10,7 @@ from functions.getLatestWeekday import getLatestWeekday
 def calcOptionDetails(serPositionsDetailsInput, dictOptionPrices, dfPricesSplitAdj, dfPricesFinalNonAdj, dfAdjFactors, dfDividendsSplitAdj, lstPositionNamesAndPrices, dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection): 
     benchmarkTicker = 'SPY' 
     
-    for eachDictOptionDetails in dictOptionPrices[list(dictOptionPrices.keys())[0]]: 
+    for eachDictOptionDetails in dictOptionPrices['contracts']: 
         if eachDictOptionDetails['option']['code'] == serPositionsDetailsInput.loc['Ticker symbol']: 
             relevantOptionDetails = eachDictOptionDetails 
 
@@ -32,13 +32,22 @@ def calcOptionDetails(serPositionsDetailsInput, dictOptionPrices, dfPricesSplitA
     dictDetailsOutput = {} 
     dictDetailsOutput['Option underlying ticker'] = relevantOptionDetails['option']['ticker'] 
     
-    for eachItem in lstPositionNamesAndPrices: 
-        if eachItem['security']['ticker'] == dictDetailsOutput['Option underlying ticker']: 
-            relevantUnderlyingNameAndPrices = eachItem 
+    if len(lstPositionNamesAndPrices) > 0: 
+        for eachItem in lstPositionNamesAndPrices: 
+            if eachItem['security']['ticker'] == dictDetailsOutput['Option underlying ticker']: 
+                relevantUnderlyingNameAndPrices = eachItem 
 
-            break 
+                break 
+            else: 
+                relevantUnderlyingNameAndPrices = {} 
+    else: 
+        relevantUnderlyingNameAndPrices = {} 
     
-    dictDetailsOutput['Option underlying name'] = relevantUnderlyingNameAndPrices['security']['name'] 
+    if relevantUnderlyingNameAndPrices != {}: 
+        dictDetailsOutput['Option underlying name'] = relevantUnderlyingNameAndPrices['security']['name'] 
+    else: 
+        dictDetailsOutput['Option underlying name'] = '' 
+    
     dictDetailsOutput['Option underlying price'] = relevantOptionDetails['stats']['underlying_price'] 
     dictDetailsOutput['Option type'] = relevantOptionDetails['option']['type'] 
     dictDetailsOutput['Option expiry'] = pd.to_datetime(relevantOptionDetails['option']['expiration']).strftime('%Y-%m-%d') 
