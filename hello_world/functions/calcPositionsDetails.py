@@ -38,6 +38,12 @@ def calcPositionsDetails(jsonPositionsDetailsInput):
     
     lstAllTickersRevised = list(np.unique(lstAllTickersRevised)) 
 
+    # Removing spurious tickers 
+    if '' in lstAllTickersRevised: 
+        lstAllTickersRevised.remove('') 
+    if ' ' in lstAllTickersRevised: 
+        lstAllTickersRevised.remove(' ') 
+    
     benchmarkTicker = 'SPY' 
     if benchmarkTicker not in lstAllTickersRevised: 
         lstAllTickersRevised.append(benchmarkTicker)

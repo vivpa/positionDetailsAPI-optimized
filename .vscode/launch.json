@@ -23,7 +23,7 @@
 			},
 			"lambda": {
 				"payload": {
-					"path": "${workspaceFolder}/events/event_0416_1.json"
+					"path": "${workspaceFolder}/events/event_0619_1.json"
 				},
 				"environmentVariables": {},
 				"runtime": "python3.9"
