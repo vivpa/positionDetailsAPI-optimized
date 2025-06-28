@@ -2,6 +2,7 @@ import datetime as dt
 import intrinio_sdk as intrinio 
 import numpy as np 
 import pandas as pd 
+import pytz 
 import requests 
 
 from functions.computeOptionValues import computeOptionValues 
@@ -75,7 +76,10 @@ def calcOptionDetails(serPositionsDetailsInput, dictOptionPrices, dfPricesSplitA
         dictDetailsOutput['Mid'] = None
     dictDetailsOutput['Option implied volatility'] = relevantOptionDetails['stats']['implied_volatility'] 
     dictDetailsOutput['Option moneyness'] = dictDetailsOutput['Option strike'] / dictDetailsOutput['Option underlying price'] 
-    dictDetailsOutput['Option days till expiration'] = (pd.to_datetime(relevantOptionDetails['option']['expiration'], format = '%Y-%m-%d') - dt.datetime.now()).days 
+
+    nyTimezone = pytz.timezone('America/New_York') 
+    dictDetailsOutput['Option days till expiration'] = (pd.to_datetime(relevantOptionDetails['option']['expiration'], format = '%Y-%m-%d') - dt.datetime.now(tz = nyTimezone)).days 
+
     dictDetailsOutput['Option delta'] = relevantOptionDetails['stats']['delta'] or None 
     dictDetailsOutput['Option gamma'] = relevantOptionDetails['stats']['gamma'] or None 
     dictDetailsOutput['Option theta'] = relevantOptionDetails['stats']['theta'] or None 
