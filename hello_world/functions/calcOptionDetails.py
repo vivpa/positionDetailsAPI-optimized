@@ -10,13 +10,16 @@ from functions.getLatestWeekday import getLatestWeekday
 def calcOptionDetails(serPositionsDetailsInput, dictOptionPrices, dfPricesSplitAdj, dfPricesFinalNonAdj, dfAdjFactors, dfDividendsSplitAdj, lstPositionNamesAndPrices, dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection): 
     benchmarkTicker = 'SPY' 
     
-    for eachDictOptionDetails in dictOptionPrices['contracts']: 
-        if eachDictOptionDetails['option']['code'] == serPositionsDetailsInput.loc['Ticker symbol']: 
-            relevantOptionDetails = eachDictOptionDetails 
+    if dictOptionPrices != {}: 
+        for eachDictOptionDetails in dictOptionPrices['contracts']: 
+            if eachDictOptionDetails['option']['code'] == serPositionsDetailsInput.loc['Ticker symbol']: 
+                relevantOptionDetails = eachDictOptionDetails 
 
-            break 
-        else: 
-            relevantOptionDetails = {} 
+                break 
+            else: 
+                relevantOptionDetails = {} 
+    else: 
+        relevantOptionDetails = {} 
     
     print(f"Response for {serPositionsDetailsInput.loc['Ticker symbol']}: {relevantOptionDetails}") 
 

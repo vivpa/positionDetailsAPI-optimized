@@ -82,6 +82,7 @@ def calcPositionsDetails(jsonPositionsDetailsInput):
     strAllTickersRevised = ','.join(lstAllTickersRevised) 
     
     url = f"https://api-v2.intrinio.com/stock_exchanges/USCOMP/quote?tickers={strAllTickersRevised}&api_key={intrinioApiKey}" 
+
     try:
         response = requests.get(url)
         response.raise_for_status()  # Raises an error for bad status codes
@@ -123,26 +124,39 @@ def calcPositionsDetails(jsonPositionsDetailsInput):
         "contracts": lstOptionTickers
     }
     
-    # Call the API
-    responseOptionPrices = requests.post( 
-        url, 
-        headers = headers, 
-        params = params, 
-        json = body, 
-        # Use Bearer Token in header or querystring for authorization https://docs.intrinio.com/documentation/api_v2/authentication
-    )
-    
-    responseOptionPrices.raise_for_status()
-    dictOptionPrices = responseOptionPrices.json()
-    
-    # Inspect results
-    for eachPosition in dictOptionPrices["contracts"]:
-        # Fixed the way the contract was pulled
-        contract = eachPosition["option"]["code"] 
-        lastPrice = eachPosition["price"]["last"] 
-        delta = eachPosition.get("stats", {}).get("delta") 
-        print(f"{contract}: last = {lastPrice}, delta = {delta}") 
+    try: 
+        if lstOptionTickers != []: 
+            # Call the API
+            responseOptionPrices = requests.post( 
+                url, 
+                headers = headers, 
+                params = params, 
+                json = body, 
+                # Use Bearer Token in header or querystring for authorization https://docs.intrinio.com/documentation/api_v2/authentication
+            )
+            
+            responseOptionPrices.raise_for_status()
+            dictOptionPrices = responseOptionPrices.json()
+        else: 
+            dictOptionPrices = {} 
 
+            print("No option tickers specified") 
+    except: 
+        dictOptionPrices = {} 
+
+        print("Option tickers' data not extracted") 
+
+    # Inspect results
+    if dictOptionPrices != {}: 
+        for eachPosition in dictOptionPrices["contracts"]:
+            # Fixed the way the contract was pulled
+            contract = eachPosition["option"]["code"] 
+            lastPrice = eachPosition["price"]["last"] 
+            delta = eachPosition.get("stats", {}).get("delta") 
+            print(f"{contract}: last = {lastPrice}, delta = {delta}") 
+    else: 
+        print('No options data extracted') 
+    
     # Extracting the dividends and earnings details for all tickers 
     bucket = 'plasmaartifact' 
     folder = 'security_classification' 
