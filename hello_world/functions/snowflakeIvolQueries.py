@@ -8,14 +8,15 @@ from snowflake.connector.errors import (
 
 # Custom exception for IV query issues 
 class IvolQueryError(Exception): 
-    def __init__(self, symbols, startDate, endDate): 
+    def __init__(self, tickerSymbol, symbols, startDate, endDate): 
+        self.tickerSymbol = tickerSymbol 
         self.symbols = symbols 
         self.startDate = startDate 
         self.endDate = endDate 
-        super().__init__(f"Failed to fetch IV data for symbols: {self.symbols} between {self.startDate} and {self.endDate}") 
+        print(f"Failed to fetch IV data for symbols: {self.tickerSymbol} between {self.startDate} and {self.endDate}") 
 
 # Function to query Snowflake for implied volatility 
-def snowflakeIvolQueries(symbols, startDate, endDate, snowflakeConnection): 
+def snowflakeIvolQueries(tickerSymbol, symbols, startDate, endDate, snowflakeConnection): 
     try:
         # Query to fetch implied volatility
         query = f""" 
@@ -36,31 +37,31 @@ def snowflakeIvolQueries(symbols, startDate, endDate, snowflakeConnection):
         
         # Check if the dataframe is empty
         if df.empty: 
-            raise IvolQueryError(symbols, startDate, endDate) 
+            raise IvolQueryError(tickerSymbol, symbols, startDate, endDate) 
         
         return df 
     
     # Handle database related errors (e.g. authentication issues) 
     except DatabaseError as db_err: 
         print(f"Database error: {db_err}") 
-        raise 
+        # raise 
     
     # Handle SQL related errors 
     except ProgrammingError as sql_err: 
         print(f"SQL error: {sql_err}") 
-        raise 
+        # raise 
     
     # Handle network related errors 
     except OperationalError as net_err: 
         print(f"Network error: {net_err}") 
-        raise 
+        # raise 
     
     # Catch any other Snowflake related errors 
     except Error as generic_sf_err: 
         print(f"Snowflake generic error: {generic_sf_err}") 
-        raise 
+        # raise 
     
     # Catch any generic errors
     except Exception as generic_err: 
         print(f"Unexpected error: {generic_err}") 
-        raise 
+        # raise 

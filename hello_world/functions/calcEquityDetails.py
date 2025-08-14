@@ -102,8 +102,12 @@ def calcEquityDetails(serPositionsDetailsInput, dfPricesSplitAdj, dfPricesFinalN
     lastPrice = dfPricesSplitAdj[tickerSymbol].iloc[-1] 
     dictDetailsOutput['1m implied volatility'] = calcImpliedVol(tickerSymbol, lastPrice, snowflakeConnection) 
     dictDetailsOutput['1m realized volatility'] = (np.log(dfPricesSplitAdj[tickerSymbol] / dfPricesSplitAdj[tickerSymbol].shift(1))).rolling(22).std().iloc[-1] * np.sqrt(252) 
-    dictDetailsOutput['1m implied volatility premium'] = dictDetailsOutput['1m implied volatility'] - dictDetailsOutput['1m realized volatility'] 
-    
+
+    if dictDetailsOutput['1m implied volatility'] != 'NA': 
+        dictDetailsOutput['1m implied volatility premium'] = dictDetailsOutput['1m implied volatility'] - dictDetailsOutput['1m realized volatility'] 
+    else: 
+        dictDetailsOutput['1m implied volatility premium'] = 'NA' 
+
     # Calculation of beta versus benchmark 
     dfReturns = (dfPricesSplitAdj / dfPricesSplitAdj.shift(1) - 1).dropna() 
     dfCovMatrix = dfReturns.cov() 
