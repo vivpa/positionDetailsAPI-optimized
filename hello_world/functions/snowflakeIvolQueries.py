@@ -14,6 +14,7 @@ class IvolQueryError(Exception):
         self.startDate = startDate 
         self.endDate = endDate 
         print(f"Failed to fetch IV data for symbols: {self.tickerSymbol} between {self.startDate} and {self.endDate}") 
+        return f"Failed to fetch IV data for symbols: {self.tickerSymbol} between {self.startDate} and {self.endDate}" 
 
 # Function to query Snowflake for implied volatility 
 def snowflakeIvolQueries(tickerSymbol, symbols, startDate, endDate, snowflakeConnection): 
@@ -44,24 +45,29 @@ def snowflakeIvolQueries(tickerSymbol, symbols, startDate, endDate, snowflakeCon
     # Handle database related errors (e.g. authentication issues) 
     except DatabaseError as db_err: 
         print(f"Database error: {db_err}") 
+        return f"Failed to fetch IV data for symbols: {tickerSymbol}" 
         # raise 
     
     # Handle SQL related errors 
     except ProgrammingError as sql_err: 
         print(f"SQL error: {sql_err}") 
+        return f"Failed to fetch IV data for symbols: {tickerSymbol}" 
         # raise 
     
     # Handle network related errors 
     except OperationalError as net_err: 
         print(f"Network error: {net_err}") 
+        return f"Failed to fetch IV data for symbols: {tickerSymbol}" 
         # raise 
     
     # Catch any other Snowflake related errors 
     except Error as generic_sf_err: 
         print(f"Snowflake generic error: {generic_sf_err}") 
+        return f"Failed to fetch IV data for symbols: {tickerSymbol}" 
         # raise 
     
     # Catch any generic errors
     except Exception as generic_err: 
         print(f"Unexpected error: {generic_err}") 
+        return f"Failed to fetch IV data for symbols: {tickerSymbol}" 
         # raise 
