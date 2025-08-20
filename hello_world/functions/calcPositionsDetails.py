@@ -13,6 +13,8 @@ from functions.getSecretsIntrinioApiKey import getSecretsIntrinioApiKey
 from functions.getSecretsSnowflake import getSecretsSnowflake 
 from functions.readCsvFromS3 import readCsvFromS3 
 from functions.retrieveIntrinioStockPricesAndDividends import retrieveIntrinioStockPricesAndDividends 
+from functions.snowflakeIdTestQuery import snowflakeIdTestQuery 
+from functions.snowflakeIvolQueries import snowflakeIvolQueries 
 
 def calcPositionsDetails(jsonPositionsDetailsInput): 
     dictPositionsDetailsInput = json.loads(jsonPositionsDetailsInput) 
@@ -183,6 +185,44 @@ def calcPositionsDetails(jsonPositionsDetailsInput):
                 dfDividendsSelectedTickers = dfDividends[dfDividends['TICKER'] == eachTicker] 
             else: 
                 dfDividendsSelectedTickers = pd.concat([dfDividendsSelectedTickers, dfDividends[dfDividends['TICKER'] == eachTicker]], ignore_index = True) 
+    
+    # Calculating all equity tickers amongst the inputs 
+    lstEquityTickers = [] 
+    for eachColumn in dfInstrumentsDetails.columns: 
+        eachPosition = dfInstrumentsDetails[eachColumn]
+        eachTicker = eachPosition['Ticker symbol'] 
+
+        print(f"Position ticker: {dfInstrumentsDetails.loc['Ticker symbol', eachColumn]}") 
+        
+        if ' ' in eachTicker: 
+            eachTickerModified = eachTicker.split(' ')[0] 
+        elif '_' in eachTicker: 
+            eachTickerModified = eachTicker.split('_')[0] 
+        else: 
+            hasAlphabets = any(c.isalpha() for c in eachTicker) 
+            hasNumbers = any(c.isdigit() for c in eachTicker) 
+            if hasAlphabets and hasNumbers: 
+                eachTickerModified = eachTicker[0: len(eachTicker) - 15] 
+            else: 
+                eachTickerModified = eachTicker 
+        
+        if eachPosition['Ticker type'].lower() == 'equity': 
+            lstEquityTickers = lstEquityTickers + [eachTickerModified] 
+    
+    try: 
+        dfSnowflakeIds, errorMessage = snowflakeIdTestQuery(lstEquityTickers, snowflakeConnection) 
+    except: 
+        dfSnowflakeIds, errorMessage = pd.DataFrame(), 'Stock IDs not found for any tickers' 
+
+    dfSnowflakeIds = dfSnowflakeIds[['STOCK_ID', 'SYMBOL']] 
+
+    startDate = (dt.datetime.now() - dt.timedelta(days = 30)).strftime("%Y%m%d") 
+    endDate = dt.datetime.now().strftime("%Y%m%d") 
+
+    try: 
+        dfImpliedVols, errorMessage = snowflakeIvolQueries(dfSnowflakeIds, startDate, endDate, snowflakeConnection) 
+    except: 
+        dfImpliedVols, errorMessage = pd.DataFrame(), 'Implied volatilities not found for any tickers' 
     
     # Calculating the position details for all the tickers 
     dictPositionsDetailsOutput = {} 
