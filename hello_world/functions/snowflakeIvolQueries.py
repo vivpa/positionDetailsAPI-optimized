@@ -1,3 +1,5 @@
+import numpy as np 
+import pandas as pd 
 import snowflake.connector 
 from snowflake.connector.errors import (
     DatabaseError,
@@ -17,7 +19,7 @@ from snowflake.connector.errors import (
 #         return f"Failed to fetch IV data for symbols: {self.tickerSymbol} between {self.startDate} and {self.endDate}" 
 
 # Function to query Snowflake for implied volatility 
-def snowflakeIvolQueries(dfSnowflakeIds, startDate, endDate, snowflakeConnection): 
+def snowflakeIvolQueries(dfSnowflakeIds, lstEquityTickers, startDate, endDate, snowflakeConnection): 
     strStockIds = '' 
     for eachIndex in dfSnowflakeIds.index: 
         if strStockIds != '': 
@@ -32,7 +34,7 @@ def snowflakeIvolQueries(dfSnowflakeIds, startDate, endDate, snowflakeConnection
     WHERE STOCK_ID IN ({strStockIds}) 
     AND T_DATE >= '{startDate}' 
     AND T_DATE <= '{endDate}' 
-    AND PERIOD IN (7, 14, 21, 30, 60, 90, 180, 270, 360) 
+    AND PERIOD IN (30) 
     ORDER BY T_DATE DESC 
     """ 
     
@@ -40,18 +42,42 @@ def snowflakeIvolQueries(dfSnowflakeIds, startDate, endDate, snowflakeConnection
     snowflakeConnection.execute(query) 
     
     # Fetch results into a Pandas DataFrame
-    df = snowflakeConnection.fetch_pandas_all() 
+    dfImpliedVols = snowflakeConnection.fetch_pandas_all() 
     
     # # Check if the dataframe is empty
     # if df.empty: 
     #     raise IvolQueryError(tickerSymbol, symbols, startDate, endDate) 
     
-    maxDate = dfImpVol['T_DATE'].max() 
-    dfImpVol1m = dfImpVol[(dfImpVol['T_DATE'] == maxDate) & (dfImpVol['PERIOD'] == 30)] 
-    
-    impliedVolAtm1m = dfImpVol1m[dfImpVol1m['OTM'] == 0]['IV'].mean() 
-    
-    return df 
+    strTickersWithNoImpliedVols = '' 
+    dfImpliedVolsOutput = pd.DataFrame(index = lstEquityTickers, columns = ['Stock ID', 'Implied vol 1m']) 
+    for eachTicker in lstEquityTickers: 
+        if eachTicker in list(dfSnowflakeIds['SYMBOL'].unique()): 
+            eachStockId = dfSnowflakeIds[dfSnowflakeIds['SYMBOL'] == eachTicker]['STOCK_ID'].iloc[0] 
+            dfImpliedVolForTicker = dfImpliedVols[dfImpliedVols['STOCK_ID'] == eachStockId].copy() 
+
+            maxDateForTicker = dfImpliedVolForTicker['T_DATE'].max() 
+
+            dfImpliedVolForTicker = dfImpliedVolForTicker[dfImpliedVolForTicker['T_DATE'] == maxDateForTicker] 
+
+            impliedVolAtm1m = dfImpliedVolForTicker[dfImpliedVolForTicker['OTM'] == 0]['IV'].mean() 
+
+            dfImpliedVolsOutput.loc[eachTicker, 'Stock ID'] = eachStockId 
+            dfImpliedVolsOutput.loc[eachTicker, 'Implied vol 1m'] = impliedVolAtm1m 
+        else: 
+            dfImpliedVolsOutput.loc[eachTicker, 'Stock ID'] = np.nan 
+            dfImpliedVolsOutput.loc[eachTicker, 'Implied vol 1m'] = np.nan 
+
+            if strTickersWithNoImpliedVols != '': 
+                strTickersWithNoImpliedVols = strTickersWithNoImpliedVols + ', ' 
+            
+            strTickersWithNoImpliedVols = strTickersWithNoImpliedVols + eachTicker 
+
+    if strTickersWithNoImpliedVols == '': 
+        errorMessage = 'Stock IDs found for all tickers' 
+    else: 
+        errorMessage = f'Stock IDs not found for ticker(s) {strTickersWithNoImpliedVols}' 
+
+    return dfImpliedVolsOutput, errorMessage 
     
     # # Handle database related errors (e.g. authentication issues) 
     # except DatabaseError as db_err: 

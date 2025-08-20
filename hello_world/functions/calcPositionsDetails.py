@@ -210,9 +210,9 @@ def calcPositionsDetails(jsonPositionsDetailsInput):
             lstEquityTickers = lstEquityTickers + [eachTickerModified] 
     
     try: 
-        dfSnowflakeIds, errorMessage = snowflakeIdTestQuery(lstEquityTickers, snowflakeConnection) 
+        dfSnowflakeIds, errorMessageStockIds = snowflakeIdTestQuery(lstEquityTickers, snowflakeConnection) 
     except: 
-        dfSnowflakeIds, errorMessage = pd.DataFrame(), 'Stock IDs not found for any tickers' 
+        dfSnowflakeIds, errorMessageStockIds = pd.DataFrame(), 'Stock IDs not found for any tickers' 
 
     dfSnowflakeIds = dfSnowflakeIds[['STOCK_ID', 'SYMBOL']] 
 
@@ -220,9 +220,9 @@ def calcPositionsDetails(jsonPositionsDetailsInput):
     endDate = dt.datetime.now().strftime("%Y%m%d") 
 
     try: 
-        dfImpliedVols, errorMessage = snowflakeIvolQueries(dfSnowflakeIds, startDate, endDate, snowflakeConnection) 
+        dfImpliedVols1m, errorMessageImpliedVols = snowflakeIvolQueries(dfSnowflakeIds, lstEquityTickers, startDate, endDate, snowflakeConnection) 
     except: 
-        dfImpliedVols, errorMessage = pd.DataFrame(), 'Implied volatilities not found for any tickers' 
+        dfImpliedVols1m, errorMessageImpliedVols = pd.DataFrame(), 'Implied volatilities not found for any tickers' 
     
     # Calculating the position details for all the tickers 
     dictPositionsDetailsOutput = {} 
@@ -252,9 +252,9 @@ def calcPositionsDetails(jsonPositionsDetailsInput):
                 dictPositionsDetailsOutput[position_id] = calcOptionDetails(eachPosition, dictOptionPrices, dfPricesSplitAdj[[eachTickerModified, benchmarkTicker]], dfPricesFinalNonAdj[[eachTickerModified, benchmarkTicker]], dfAdjFactors[[eachTickerModified, benchmarkTicker]], dfDividendsSplitAdj[[eachTickerModified, benchmarkTicker]], lstPositionNamesAndPrices, dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection) 
         elif eachPosition['Ticker type'].lower() == 'equity': 
             if benchmarkTicker == eachTickerModified: 
-                dictPositionsDetailsOutput[position_id] = calcEquityDetails(eachPosition, dfPricesSplitAdj[[eachTickerModified]], dfPricesFinalNonAdj[[eachTickerModified]], dfAdjFactors[[eachTickerModified]], dfDividendsSplitAdj[[eachTickerModified]], lstPositionNamesAndPrices, dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection) 
+                dictPositionsDetailsOutput[position_id] = calcEquityDetails(eachPosition, dfImpliedVols1m, dfPricesSplitAdj[[eachTickerModified]], dfPricesFinalNonAdj[[eachTickerModified]], dfAdjFactors[[eachTickerModified]], dfDividendsSplitAdj[[eachTickerModified]], lstPositionNamesAndPrices, dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection) 
             else: 
-                dictPositionsDetailsOutput[position_id] = calcEquityDetails(eachPosition, dfPricesSplitAdj[[eachTickerModified, benchmarkTicker]], dfPricesFinalNonAdj[[eachTickerModified, benchmarkTicker]], dfAdjFactors[[eachTickerModified, benchmarkTicker]], dfDividendsSplitAdj[[eachTickerModified, benchmarkTicker]], lstPositionNamesAndPrices, dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection) 
+                dictPositionsDetailsOutput[position_id] = calcEquityDetails(eachPosition, dfImpliedVols1m, dfPricesSplitAdj[[eachTickerModified, benchmarkTicker]], dfPricesFinalNonAdj[[eachTickerModified, benchmarkTicker]], dfAdjFactors[[eachTickerModified, benchmarkTicker]], dfDividendsSplitAdj[[eachTickerModified, benchmarkTicker]], lstPositionNamesAndPrices, dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection) 
         elif eachPosition['Ticker type'].lower() == 'other': 
             dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False } 
     
