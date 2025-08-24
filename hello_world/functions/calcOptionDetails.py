@@ -31,7 +31,7 @@ def calcOptionDetails(serPositionsDetailsInput, dictOptionPrices, dfPricesSplitA
         returnNas = True 
     
     if returnNas == True: 
-        return { "detailsAvailable": False } 
+        return { "detailsAvailable": False, "errorMessage": "Option details not available in database" } 
     
     dictDetailsOutput = {} 
     dictDetailsOutput['Option underlying ticker'] = relevantOptionDetails['option']['ticker'] 

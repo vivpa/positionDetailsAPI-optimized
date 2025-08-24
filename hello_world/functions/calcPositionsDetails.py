@@ -256,7 +256,7 @@ def calcPositionsDetails(jsonPositionsDetailsInput):
             else: 
                 dictPositionsDetailsOutput[position_id] = calcEquityDetails(eachPosition, dfImpliedVols1m, dfPricesSplitAdj[[eachTickerModified, benchmarkTicker]], dfPricesFinalNonAdj[[eachTickerModified, benchmarkTicker]], dfAdjFactors[[eachTickerModified, benchmarkTicker]], dfDividendsSplitAdj[[eachTickerModified, benchmarkTicker]], lstPositionNamesAndPrices, dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection) 
         elif eachPosition['Ticker type'].lower() == 'other': 
-            dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False } 
+            dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False, 'errorMessage': 'Ticker is not a listed equity or option' } 
     
     # Convert each entry to dict and fill NAs
     dictPositionsDetailsOutputRevised = {
