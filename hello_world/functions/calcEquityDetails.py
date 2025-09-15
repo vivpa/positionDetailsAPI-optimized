@@ -123,7 +123,7 @@ def calcEquityDetails(serPositionsDetailsInput, dfImpliedVols1m, dfPricesSplitAd
     dictDetailsOutput[f'Dividend on {strLastDate}'] = dfDividendsSplitAdj[serPositionsDetailsInput['Ticker symbol']].iloc[-1] 
     dictDetailsOutput[f'Dividend on {strSecondLastDate}'] = dfDividendsSplitAdj[serPositionsDetailsInput['Ticker symbol']].iloc[-2] 
     
-    date1yAgo = pd.to_datetime(endDate, format = '%Y-%m-%d') - dt.timedelta(days = 365) 
+    date1yAgo = (endDate - dt.timedelta(days = 365)).date() 
     dividends1y = dfDividendsSplitAdj[dfDividendsSplitAdj.index >= date1yAgo][serPositionsDetailsInput['Ticker symbol']].sum() 
     
     dictDetailsOutput['1y dividend yield'] = None if dictDetailsOutput['Last price'] == None else (dividends1y / dictDetailsOutput['Last price']) 

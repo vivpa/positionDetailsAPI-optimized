@@ -12,14 +12,16 @@ def retrieveIntrinioStockPricesAndDividends(strTickers, startDate, endDate, snow
     #             2. sorted in ascending order of date
     
     # Converting tickers to structure ('ABC','DEF','XYZ'). Reqd for sql query 
-    if type(strTickers) == str or type(strTickers) == np.str_: 
+    if isinstance(strTickers, str): 
         lstTickers = strTickers.split(' ') 
-    elif type(strTickers) == list: 
+    elif isinstance(strTickers, list): 
         lstTickers = strTickers 
     else: 
-        lstTickers = strTickers 
+        lstTickers = list(strTickers) 
     
-    lstTickersSql = "(%s)" % str(lstTickers).strip('[]') 
+    # Ensure all ticker symbols are strings and properly formatted for SQL
+    lstTickers = [str(ticker).strip().replace("'", "''") for ticker in lstTickers if str(ticker).strip()]
+    lstTickersSql = "('" + "','".join(lstTickers) + "')" 
     
     # Sql query 
     query = """ 

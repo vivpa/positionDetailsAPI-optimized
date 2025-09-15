@@ -165,7 +165,7 @@ def calcOptionDetails(serPositionsDetailsInput, dictOptionPrices, dfPricesSplitA
     
     endDate = dt.datetime.now() 
     endDate = getLatestWeekday(endDate) 
-    date1yAgo = endDate - dt.timedelta(days = 365) 
+    date1yAgo = (endDate - dt.timedelta(days = 365)).date() 
     dividendsLast1y = dfDividendsSplitAdj[dfDividendsSplitAdj.index >= date1yAgo][dictDetailsOutput['Option underlying ticker']].sum() 
     
     # Calculating intrinsic value, time value and whether or not the option is likely to be early exercised 
