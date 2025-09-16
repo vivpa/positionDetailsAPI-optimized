@@ -26,8 +26,8 @@ def retrieveIntrinioStockPricesAndDividends(strTickers, startDate, endDate, snow
     # Sql query 
     query = """ 
     select DATE, TICKER, CLOSE, SPLIT_RATIO, EX_DIVIDEND, ADJ_CLOSE 
-    from INTRINIO.PUBLIC.STOCK_PRICES_USCOMP 
-    where TICKER in """ + lstTickersSql + """ 
+    from LANDING.RAW_IVOL.V_INTRINIO_STOCK_PRICES_USCOMP
+    where (TICKER in """ + lstTickersSql + """ OR MODIFIED_TICKER in """ + lstTickersSql + """) 
     and Date >=' """ + str(startDate.date()) + "'" + """ 
     and Date <=' """ + str(endDate.date()) + "'" + """ 
     order by DATE""" 
