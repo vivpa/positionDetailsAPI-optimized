@@ -78,7 +78,7 @@ def calcOptionDetails(serPositionsDetailsInput, dictOptionPrices, dfPricesSplitA
     dictDetailsOutput['Option moneyness'] = dictDetailsOutput['Option strike'] / dictDetailsOutput['Option underlying price'] 
 
     nyTimezone = pytz.timezone('America/New_York') 
-    dictDetailsOutput['Option days till expiration'] = (pd.to_datetime(relevantOptionDetails['option']['expiration'], format = '%Y-%m-%d').tz_localize(nyTimezone) - dt.datetime.now(tz = nyTimezone)).days 
+    dictDetailsOutput['Option days till expiration'] = (pd.to_datetime(relevantOptionDetails['option']['expiration'], format = '%Y-%m-%d').tz_localize(nyTimezone) - dt.datetime.now(tz = nyTimezone)).days + 1 
 
     dictDetailsOutput['Option delta'] = relevantOptionDetails['stats']['delta'] or None 
     dictDetailsOutput['Option gamma'] = relevantOptionDetails['stats']['gamma'] or None 
