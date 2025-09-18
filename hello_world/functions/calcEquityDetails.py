@@ -116,7 +116,8 @@ def calcEquityDetails(serPositionsDetailsInput, dfImpliedVols1m, dfPricesSplitAd
     # Calculation of beta versus benchmark 
     dfReturns = (dfPricesSplitAdj / dfPricesSplitAdj.shift(1) - 1).dropna() 
     dfCovMatrix = dfReturns.cov() 
-    dictDetailsOutput['Beta versus benchmark'] = dfCovMatrix.loc[serPositionsDetailsInput['Ticker symbol'], benchmarkTicker] / (dfReturns[benchmarkTicker].std() ** 2) 
+    benchmark_variance = dfReturns[benchmarkTicker].std() ** 2
+    dictDetailsOutput['Beta versus benchmark'] = None if benchmark_variance == 0 or benchmark_variance is None else dfCovMatrix.loc[serPositionsDetailsInput['Ticker symbol'], benchmarkTicker] / benchmark_variance 
     
     strLastDate = dfDividendsSplitAdj.sort_index(ascending = True).index[-1].strftime('%Y-%m-%d') 
     strSecondLastDate = dfDividendsSplitAdj.sort_index(ascending = True).index[-2].strftime('%Y-%m-%d') 
@@ -126,14 +127,14 @@ def calcEquityDetails(serPositionsDetailsInput, dfImpliedVols1m, dfPricesSplitAd
     date1yAgo = (endDate - dt.timedelta(days = 365)).date() 
     dividends1y = dfDividendsSplitAdj[dfDividendsSplitAdj.index >= date1yAgo][serPositionsDetailsInput['Ticker symbol']].sum() 
     
-    dictDetailsOutput['1y dividend yield'] = None if dictDetailsOutput['Last price'] == None else (dividends1y / dictDetailsOutput['Last price']) 
+    dictDetailsOutput['1y dividend yield'] = None if dictDetailsOutput['Last price'] == None or dictDetailsOutput['Last price'] == 0 else (dividends1y / dictDetailsOutput['Last price']) 
     
     strLastDate = dfAdjFactors.sort_index(ascending = True).index[-1].strftime('%Y-%m-%d') 
     strSecondLastDate = dfAdjFactors.sort_index(ascending = True).index[-2].strftime('%Y-%m-%d') 
     splitFactorLastDate = dfAdjFactors[serPositionsDetailsInput['Ticker symbol']].iloc[-1] 
     splitFactorSecondLastDate = dfAdjFactors[serPositionsDetailsInput['Ticker symbol']].iloc[-2] 
-    dictDetailsOutput[f'Split adjustment on {strLastDate}'] = 'None' if splitFactorLastDate == 1 else f'{int((1 / splitFactorLastDate) * 100) / 100} for 1 split' 
-    dictDetailsOutput[f'Split adjustment on {strSecondLastDate}'] = 'None' if splitFactorSecondLastDate == 1 else f'{int((1 / splitFactorSecondLastDate) * 100) / 100} for 1 split' 
+    dictDetailsOutput[f'Split adjustment on {strLastDate}'] = 'None' if splitFactorLastDate == 1 or splitFactorLastDate == 0 or splitFactorLastDate is None else f'{int((1 / splitFactorLastDate) * 100) / 100} for 1 split' 
+    dictDetailsOutput[f'Split adjustment on {strSecondLastDate}'] = 'None' if splitFactorSecondLastDate == 1 or splitFactorSecondLastDate == 0 or splitFactorSecondLastDate is None else f'{int((1 / splitFactorSecondLastDate) * 100) / 100} for 1 split' 
     
     dictDetailsOutput['detailsAvailable'] = True 
 

@@ -75,7 +75,7 @@ def calcOptionDetails(serPositionsDetailsInput, dictOptionPrices, dfPricesSplitA
     else:
         dictDetailsOutput['Mid'] = None
     dictDetailsOutput['Option implied volatility'] = relevantOptionDetails['stats']['implied_volatility'] 
-    dictDetailsOutput['Option moneyness'] = dictDetailsOutput['Option strike'] / dictDetailsOutput['Option underlying price'] 
+    dictDetailsOutput['Option moneyness'] = None if dictDetailsOutput['Option underlying price'] == 0 or dictDetailsOutput['Option underlying price'] is None else dictDetailsOutput['Option strike'] / dictDetailsOutput['Option underlying price'] 
 
     nyTimezone = pytz.timezone('America/New_York') 
     dictDetailsOutput['Option days till expiration'] = (pd.to_datetime(relevantOptionDetails['option']['expiration'], format = '%Y-%m-%d').tz_localize(nyTimezone) - dt.datetime.now(tz = nyTimezone)).days + 1 
@@ -144,14 +144,15 @@ def calcOptionDetails(serPositionsDetailsInput, dictOptionPrices, dfPricesSplitA
         dictDetailsOutput['Total vega'] = (dictDetailsOutput['Option vega'] * dictDetailsOutput['Total shares deliverable']) if dictDetailsOutput['Option vega'] != None else None 
         
         if serPositionsDetailsInput['Underlying position'] != 'NA': 
-            dictDetailsOutput['Coverage ratio'] = dictDetailsOutput['Total shares deliverable'] / serPositionsDetailsInput['Underlying position'] 
+            dictDetailsOutput['Coverage ratio'] = None if serPositionsDetailsInput['Underlying position'] == 0 or serPositionsDetailsInput['Underlying position'] is None else dictDetailsOutput['Total shares deliverable'] / serPositionsDetailsInput['Underlying position'] 
             dictDetailsOutput['Covered call delta'] = (1 - dictDetailsOutput['Coverage ratio'] * dictDetailsOutput['Option delta']) if dictDetailsOutput['Option delta'] != None else None 
             
             # Calculation of beta versus benchmark 
             dfReturns = (dfPricesSplitAdj / dfPricesSplitAdj.shift(1) - 1).dropna() 
             dfCovMatrix = dfReturns.cov() 
             
-            betaVsBenchmark = dfCovMatrix.loc[dictDetailsOutput['Option underlying ticker'], benchmarkTicker] / dfReturns.std()[benchmarkTicker] ** 2 
+            benchmark_variance = dfReturns.std()[benchmarkTicker] ** 2
+            betaVsBenchmark = None if benchmark_variance == 0 or benchmark_variance is None else dfCovMatrix.loc[dictDetailsOutput['Option underlying ticker'], benchmarkTicker] / benchmark_variance 
             
             dictDetailsOutput['Covered call beta'] = (dictDetailsOutput['Covered call delta'] * betaVsBenchmark) if dictDetailsOutput['Covered call delta'] != None else None 
             dictDetailsOutput['Total covered call delta'] = (dictDetailsOutput['Covered call delta'] * dictDetailsOutput['Total shares deliverable']) if dictDetailsOutput['Covered call delta'] != None else None 
@@ -161,7 +162,8 @@ def calcOptionDetails(serPositionsDetailsInput, dictOptionPrices, dfPricesSplitA
         tradeDate = pd.to_datetime(serPositionsDetailsInput['Option trade date'], format = '%Y-%m-%d').date() 
         underlyingPriceTradeDate = dfPricesSplitAdj[dfPricesSplitAdj.index <= pd.to_datetime(tradeDate)][dictDetailsOutput['Option underlying ticker']].iloc[-1] 
         if 'Option entry price' in serPositionsDetailsInput.index: 
-            dictDetailsOutput['Annualized premium at inception'] = (serPositionsDetailsInput['Option entry price'] / underlyingPriceTradeDate) * (365 / (pd.to_datetime(relevantOptionDetails['option']['expiration']).date() - tradeDate).days) 
+            days_to_expiry = (pd.to_datetime(relevantOptionDetails['option']['expiration']).date() - tradeDate).days
+            dictDetailsOutput['Annualized premium at inception'] = None if underlyingPriceTradeDate == 0 or underlyingPriceTradeDate is None or days_to_expiry == 0 else (serPositionsDetailsInput['Option entry price'] / underlyingPriceTradeDate) * (365 / days_to_expiry) 
     
     endDate = dt.datetime.now() 
     endDate = getLatestWeekday(endDate) 

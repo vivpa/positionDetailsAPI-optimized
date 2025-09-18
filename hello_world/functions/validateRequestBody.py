@@ -311,7 +311,7 @@ def validateRequestBody(parsedBody):
                 }
                 return False, error_response
 
-            if row['Underlying position'] <= 0:
+            if row['Underlying position'] < 0:
                 error_response = {
                     "error": {
                         "type": "ValidationError",
