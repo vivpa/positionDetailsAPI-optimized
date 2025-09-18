@@ -109,7 +109,7 @@ def calcEquityDetails(serPositionsDetailsInput, dfImpliedVols1m, dfPricesSplitAd
     dictDetailsOutput['1m realized volatility'] = (np.log(dfPricesSplitAdj[tickerSymbol] / dfPricesSplitAdj[tickerSymbol].shift(1))).rolling(22).std().iloc[-1] * np.sqrt(252) 
 
     if dictDetailsOutput['1m implied volatility'] != 'NA': 
-        dictDetailsOutput['1m implied volatility premium'] = dictDetailsOutput['1m implied volatility'] - dictDetailsOutput['1m realized volatility'] 
+        dictDetailsOutput['1m implied volatility premium'] = None if dictDetailsOutput['1m implied volatility'] is None or dictDetailsOutput['1m realized volatility'] is None else dictDetailsOutput['1m implied volatility'] - dictDetailsOutput['1m realized volatility'] 
     else: 
         dictDetailsOutput['1m implied volatility premium'] = 'NA' 
 

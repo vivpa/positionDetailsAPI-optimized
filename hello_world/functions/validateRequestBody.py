@@ -155,7 +155,7 @@ def validateRequestBody(parsedBody):
             }
             return False, error_response
 
-        if row['Ticker position'] <= 0:
+        if row['Ticker position'] < 0:
             error_response = {
                 "error": {
                     "type": "ValidationError",
