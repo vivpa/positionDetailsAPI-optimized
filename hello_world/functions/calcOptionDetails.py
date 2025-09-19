@@ -78,7 +78,11 @@ def calcOptionDetails(serPositionsDetailsInput, dictOptionPrices, dfPricesSplitA
     dictDetailsOutput['Option moneyness'] = None if dictDetailsOutput['Option underlying price'] == 0 or dictDetailsOutput['Option underlying price'] is None else dictDetailsOutput['Option strike'] / dictDetailsOutput['Option underlying price'] 
 
     nyTimezone = pytz.timezone('America/New_York') 
-    dictDetailsOutput['Option days till expiration'] = (pd.to_datetime(relevantOptionDetails['option']['expiration'], format = '%Y-%m-%d').tz_localize(nyTimezone) - dt.datetime.now(tz = nyTimezone)).days + 1 
+    # Calculate days till expiration from current date (not current datetime)
+    # This ensures that if today is the expiration date, it returns 1
+    expiration_date = pd.to_datetime(relevantOptionDetails['option']['expiration'], format = '%Y-%m-%d').date()
+    current_date = dt.datetime.now(tz = nyTimezone).date()
+    dictDetailsOutput['Option days till expiration'] = (expiration_date - current_date).days + 1
 
     dictDetailsOutput['Option delta'] = relevantOptionDetails['stats']['delta'] or None 
     dictDetailsOutput['Option gamma'] = relevantOptionDetails['stats']['gamma'] or None 
