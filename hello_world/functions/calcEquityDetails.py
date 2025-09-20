@@ -133,8 +133,16 @@ def calcEquityDetails(serPositionsDetailsInput, dfImpliedVols1m, dfPricesSplitAd
     strSecondLastDate = dfAdjFactors.sort_index(ascending = True).index[-2].strftime('%Y-%m-%d') 
     splitFactorLastDate = dfAdjFactors[serPositionsDetailsInput['Ticker symbol']].iloc[-1] 
     splitFactorSecondLastDate = dfAdjFactors[serPositionsDetailsInput['Ticker symbol']].iloc[-2] 
-    dictDetailsOutput[f'Split adjustment on {strLastDate}'] = 'None' if splitFactorLastDate == 1 or splitFactorLastDate == 0 or splitFactorLastDate is None else f'{int((1 / splitFactorLastDate) * 100) / 100} for 1 split' 
-    dictDetailsOutput[f'Split adjustment on {strSecondLastDate}'] = 'None' if splitFactorSecondLastDate == 1 or splitFactorSecondLastDate == 0 or splitFactorSecondLastDate is None else f'{int((1 / splitFactorSecondLastDate) * 100) / 100} for 1 split' 
+
+    if splitFactorLastDate == 0 or splitFactorLastDate is None: 
+        dictDetailsOutput[f'Split adjustment on {strLastDate}'] = 'NA' 
+    else: 
+        dictDetailsOutput[f'Split adjustment on {strLastDate}'] = 'None' if splitFactorLastDate == 1 else f'{int((1 / splitFactorLastDate) * 100) / 100} for 1 split' 
+
+    if splitFactorSecondLastDate == 0 or splitFactorSecondLastDate is None: 
+        dictDetailsOutput[f'Split adjustment on {strSecondLastDate}'] = 'NA' 
+    else: 
+        dictDetailsOutput[f'Split adjustment on {strSecondLastDate}'] = 'None' if splitFactorSecondLastDate == 1 else f'{int((1 / splitFactorSecondLastDate) * 100) / 100} for 1 split' 
     
     dictDetailsOutput['detailsAvailable'] = True 
 
