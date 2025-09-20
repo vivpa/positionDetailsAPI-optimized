@@ -12,20 +12,22 @@ def retrieveIntrinioStockPricesAndDividends(strTickers, startDate, endDate, snow
     #             2. sorted in ascending order of date
     
     # Converting tickers to structure ('ABC','DEF','XYZ'). Reqd for sql query 
-    if type(strTickers) == str or type(strTickers) == np.str_: 
+    if isinstance(strTickers, str): 
         lstTickers = strTickers.split(' ') 
-    elif type(strTickers) == list: 
+    elif isinstance(strTickers, list): 
         lstTickers = strTickers 
     else: 
-        lstTickers = strTickers 
+        lstTickers = list(strTickers) 
     
-    lstTickersSql = "(%s)" % str(lstTickers).strip('[]') 
+    # Ensure all ticker symbols are strings and properly formatted for SQL
+    lstTickers = [str(ticker).strip().replace("'", "''") for ticker in lstTickers if str(ticker).strip()]
+    lstTickersSql = "('" + "','".join(lstTickers) + "')" 
     
     # Sql query 
     query = """ 
     select DATE, TICKER, CLOSE, SPLIT_RATIO, EX_DIVIDEND, ADJ_CLOSE 
-    from INTRINIO.PUBLIC.STOCK_PRICES_USCOMP 
-    where TICKER in """ + lstTickersSql + """ 
+    from LANDING.RAW_IVOL.V_INTRINIO_STOCK_PRICES_USCOMP
+    where (TICKER in """ + lstTickersSql + """ OR MODIFIED_TICKER in """ + lstTickersSql + """) 
     and Date >=' """ + str(startDate.date()) + "'" + """ 
     and Date <=' """ + str(endDate.date()) + "'" + """ 
     order by DATE""" 

@@ -1,11 +1,43 @@
 import json
 from datetime import datetime
 import sys
+import os
 import re
+import sentry_sdk
+from sentry_sdk.integrations.aws_lambda import AwsLambdaIntegration
 
 # Import functions to do things 
 from functions.calcPositionsDetails import calcPositionsDetails 
 from functions.validateRequestBody import validateRequestBody 
+
+# Initialize Sentry with environment variable
+sentry_dsn = os.getenv('SENTRY_DSN')
+if sentry_dsn:
+    # Get sampling rates from environment variables with sensible defaults
+    traces_sample_rate = float(os.getenv('SENTRY_TRACES_SAMPLE_RATE', '0.1'))  # 10% default
+    profile_sample_rate = float(os.getenv('SENTRY_PROFILE_SAMPLE_RATE', '0.1'))  # 10% default
+    
+    sentry_sdk.init(
+        dsn=sentry_dsn,
+        # Add data like request headers and IP for users, if applicable;
+        # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
+        send_default_pii=True,
+        # Set traces_sample_rate to capture a percentage of transactions for tracing.
+        # Default is 0.1 (10%) to balance monitoring with performance and costs.
+        traces_sample_rate=traces_sample_rate,
+        # To collect profiles for a percentage of profile sessions.
+        # Default is 0.1 (10%) to balance profiling with performance and costs.
+        profile_session_sample_rate=profile_sample_rate,
+        # Profiles will be automatically collected while
+        # there is an active span.
+        profile_lifecycle="trace",
+        integrations=[
+            AwsLambdaIntegration(timeout_warning=True),
+        ],
+    )
+    print(f"Sentry initialized with traces_sample_rate={traces_sample_rate}, profile_sample_rate={profile_sample_rate}")
+else:
+    print("Warning: SENTRY_DSN environment variable not set. Sentry monitoring disabled.") 
 
 class first_call:
     def calcDetails(jsonPortfolioStatsInput): 
@@ -55,6 +87,19 @@ def lambda_handler(event, context):
 
     except Exception as ex:
         ex_type, ex_value, ex_traceback = sys.exc_info()
+
+        # Capture error with Sentry
+        if sentry_dsn:
+            print("Capturing error with Sentry")
+            with sentry_sdk.push_scope() as scope:
+                scope.set_tag("service", "position details api")
+                scope.set_tag("stage", "development")
+                scope.set_context("request", {
+                    "request_id": context.aws_request_id if context else None,
+                    "timestamp": datetime.now().isoformat()
+                })
+                sentry_sdk.capture_exception(ex)
+
         message = mask_api_key_in_url(str(ex_value))
         error_response = {
             "error": {

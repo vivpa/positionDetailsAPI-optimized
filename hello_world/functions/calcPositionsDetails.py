@@ -246,17 +246,61 @@ def calcPositionsDetails(jsonPositionsDetailsInput):
                 eachTickerModified = eachTicker 
         
         if eachPosition['Ticker type'].lower() == 'option': 
-            if benchmarkTicker == eachTickerModified: 
-                dictPositionsDetailsOutput[position_id] = calcOptionDetails(eachPosition, dictOptionPrices, dfPricesSplitAdj[[eachTickerModified]], dfPricesFinalNonAdj[[eachTickerModified]], dfAdjFactors[[eachTickerModified]], dfDividendsSplitAdj[[eachTickerModified]], lstPositionNamesAndPrices, dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection) 
+            # Check if required columns exist in DataFrames
+            if eachTickerModified not in dfPricesSplitAdj.columns:
+                dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False, 'errorMessage': f'Price data not available for ticker: {eachTickerModified}' }
+            elif benchmarkTicker == eachTickerModified: 
+                # Get available columns for the ticker
+                available_cols_prices = [col for col in [eachTickerModified] if col in dfPricesSplitAdj.columns]
+                available_cols_final = [col for col in [eachTickerModified] if col in dfPricesFinalNonAdj.columns]
+                available_cols_adj = [col for col in [eachTickerModified] if col in dfAdjFactors.columns]
+                available_cols_div = [col for col in [eachTickerModified] if col in dfDividendsSplitAdj.columns]
+                
+                dictPositionsDetailsOutput[position_id] = calcOptionDetails(eachPosition, dictOptionPrices, dfPricesSplitAdj[available_cols_prices], dfPricesFinalNonAdj[available_cols_final], dfAdjFactors[available_cols_adj], dfDividendsSplitAdj[available_cols_div], lstPositionNamesAndPrices, dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection) 
             else: 
-                dictPositionsDetailsOutput[position_id] = calcOptionDetails(eachPosition, dictOptionPrices, dfPricesSplitAdj[[eachTickerModified, benchmarkTicker]], dfPricesFinalNonAdj[[eachTickerModified, benchmarkTicker]], dfAdjFactors[[eachTickerModified, benchmarkTicker]], dfDividendsSplitAdj[[eachTickerModified, benchmarkTicker]], lstPositionNamesAndPrices, dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection) 
+                # Check if both tickers exist
+                required_tickers = [eachTickerModified, benchmarkTicker]
+                missing_tickers = [ticker for ticker in required_tickers if ticker not in dfPricesSplitAdj.columns]
+                
+                if missing_tickers:
+                    dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False, 'errorMessage': f'Price data not available for tickers: {", ".join(missing_tickers)}' }
+                else:
+                    # Get available columns for both tickers
+                    available_cols_prices = [col for col in required_tickers if col in dfPricesSplitAdj.columns]
+                    available_cols_final = [col for col in required_tickers if col in dfPricesFinalNonAdj.columns]
+                    available_cols_adj = [col for col in required_tickers if col in dfAdjFactors.columns]
+                    available_cols_div = [col for col in required_tickers if col in dfDividendsSplitAdj.columns]
+                    
+                    dictPositionsDetailsOutput[position_id] = calcOptionDetails(eachPosition, dictOptionPrices, dfPricesSplitAdj[available_cols_prices], dfPricesFinalNonAdj[available_cols_final], dfAdjFactors[available_cols_adj], dfDividendsSplitAdj[available_cols_div], lstPositionNamesAndPrices, dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection) 
         elif eachPosition['Ticker type'].lower() == 'equity': 
-            if benchmarkTicker == eachTickerModified: 
-                dictPositionsDetailsOutput[position_id] = calcEquityDetails(eachPosition, dfImpliedVols1m, dfPricesSplitAdj[[eachTickerModified]], dfPricesFinalNonAdj[[eachTickerModified]], dfAdjFactors[[eachTickerModified]], dfDividendsSplitAdj[[eachTickerModified]], lstPositionNamesAndPrices, dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection) 
+            # Check if required columns exist in DataFrames
+            if eachTickerModified not in dfPricesSplitAdj.columns:
+                dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False, 'errorMessage': f'Price data not available for ticker: {eachTickerModified}' }
+            elif benchmarkTicker == eachTickerModified: 
+                # Get available columns for the ticker
+                available_cols_prices = [col for col in [eachTickerModified] if col in dfPricesSplitAdj.columns]
+                available_cols_final = [col for col in [eachTickerModified] if col in dfPricesFinalNonAdj.columns]
+                available_cols_adj = [col for col in [eachTickerModified] if col in dfAdjFactors.columns]
+                available_cols_div = [col for col in [eachTickerModified] if col in dfDividendsSplitAdj.columns]
+                
+                dictPositionsDetailsOutput[position_id] = calcEquityDetails(eachPosition, dfImpliedVols1m, dfPricesSplitAdj[available_cols_prices], dfPricesFinalNonAdj[available_cols_final], dfAdjFactors[available_cols_adj], dfDividendsSplitAdj[available_cols_div], lstPositionNamesAndPrices, dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection) 
             else: 
-                dictPositionsDetailsOutput[position_id] = calcEquityDetails(eachPosition, dfImpliedVols1m, dfPricesSplitAdj[[eachTickerModified, benchmarkTicker]], dfPricesFinalNonAdj[[eachTickerModified, benchmarkTicker]], dfAdjFactors[[eachTickerModified, benchmarkTicker]], dfDividendsSplitAdj[[eachTickerModified, benchmarkTicker]], lstPositionNamesAndPrices, dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection) 
+                # Check if both tickers exist
+                required_tickers = [eachTickerModified, benchmarkTicker]
+                missing_tickers = [ticker for ticker in required_tickers if ticker not in dfPricesSplitAdj.columns]
+                
+                if missing_tickers:
+                    dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False, 'errorMessage': f'Price data not available for tickers: {", ".join(missing_tickers)}' }
+                else:
+                    # Get available columns for both tickers
+                    available_cols_prices = [col for col in required_tickers if col in dfPricesSplitAdj.columns]
+                    available_cols_final = [col for col in required_tickers if col in dfPricesFinalNonAdj.columns]
+                    available_cols_adj = [col for col in required_tickers if col in dfAdjFactors.columns]
+                    available_cols_div = [col for col in required_tickers if col in dfDividendsSplitAdj.columns]
+                    
+                    dictPositionsDetailsOutput[position_id] = calcEquityDetails(eachPosition, dfImpliedVols1m, dfPricesSplitAdj[available_cols_prices], dfPricesFinalNonAdj[available_cols_final], dfAdjFactors[available_cols_adj], dfDividendsSplitAdj[available_cols_div], lstPositionNamesAndPrices, dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection) 
         elif eachPosition['Ticker type'].lower() == 'other': 
-            dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False } 
+            dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False, 'errorMessage': 'Ticker is not a listed equity or option' } 
     
     # Convert each entry to dict and fill NAs
     dictPositionsDetailsOutputRevised = {

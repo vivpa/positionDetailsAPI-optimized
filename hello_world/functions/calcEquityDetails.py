@@ -109,31 +109,40 @@ def calcEquityDetails(serPositionsDetailsInput, dfImpliedVols1m, dfPricesSplitAd
     dictDetailsOutput['1m realized volatility'] = (np.log(dfPricesSplitAdj[tickerSymbol] / dfPricesSplitAdj[tickerSymbol].shift(1))).rolling(22).std().iloc[-1] * np.sqrt(252) 
 
     if dictDetailsOutput['1m implied volatility'] != 'NA': 
-        dictDetailsOutput['1m implied volatility premium'] = dictDetailsOutput['1m implied volatility'] - dictDetailsOutput['1m realized volatility'] 
+        dictDetailsOutput['1m implied volatility premium'] = None if dictDetailsOutput['1m implied volatility'] is None or dictDetailsOutput['1m realized volatility'] is None else dictDetailsOutput['1m implied volatility'] - dictDetailsOutput['1m realized volatility'] 
     else: 
         dictDetailsOutput['1m implied volatility premium'] = 'NA' 
 
     # Calculation of beta versus benchmark 
     dfReturns = (dfPricesSplitAdj / dfPricesSplitAdj.shift(1) - 1).dropna() 
     dfCovMatrix = dfReturns.cov() 
-    dictDetailsOutput['Beta versus benchmark'] = dfCovMatrix.loc[serPositionsDetailsInput['Ticker symbol'], benchmarkTicker] / (dfReturns[benchmarkTicker].std() ** 2) 
+    benchmark_variance = dfReturns[benchmarkTicker].std() ** 2
+    dictDetailsOutput['Beta versus benchmark'] = None if benchmark_variance == 0 or benchmark_variance is None else dfCovMatrix.loc[serPositionsDetailsInput['Ticker symbol'], benchmarkTicker] / benchmark_variance 
     
     strLastDate = dfDividendsSplitAdj.sort_index(ascending = True).index[-1].strftime('%Y-%m-%d') 
     strSecondLastDate = dfDividendsSplitAdj.sort_index(ascending = True).index[-2].strftime('%Y-%m-%d') 
     dictDetailsOutput[f'Dividend on {strLastDate}'] = dfDividendsSplitAdj[serPositionsDetailsInput['Ticker symbol']].iloc[-1] 
     dictDetailsOutput[f'Dividend on {strSecondLastDate}'] = dfDividendsSplitAdj[serPositionsDetailsInput['Ticker symbol']].iloc[-2] 
     
-    date1yAgo = pd.to_datetime(endDate, format = '%Y-%m-%d') - dt.timedelta(days = 365) 
+    date1yAgo = (endDate - dt.timedelta(days = 365)).date() 
     dividends1y = dfDividendsSplitAdj[dfDividendsSplitAdj.index >= date1yAgo][serPositionsDetailsInput['Ticker symbol']].sum() 
     
-    dictDetailsOutput['1y dividend yield'] = None if dictDetailsOutput['Last price'] == None else (dividends1y / dictDetailsOutput['Last price']) 
+    dictDetailsOutput['1y dividend yield'] = None if dictDetailsOutput['Last price'] == None or dictDetailsOutput['Last price'] == 0 else (dividends1y / dictDetailsOutput['Last price']) 
     
     strLastDate = dfAdjFactors.sort_index(ascending = True).index[-1].strftime('%Y-%m-%d') 
     strSecondLastDate = dfAdjFactors.sort_index(ascending = True).index[-2].strftime('%Y-%m-%d') 
     splitFactorLastDate = dfAdjFactors[serPositionsDetailsInput['Ticker symbol']].iloc[-1] 
     splitFactorSecondLastDate = dfAdjFactors[serPositionsDetailsInput['Ticker symbol']].iloc[-2] 
-    dictDetailsOutput[f'Split adjustment on {strLastDate}'] = 'None' if splitFactorLastDate == 1 else f'{int((1 / splitFactorLastDate) * 100) / 100} for 1 split' 
-    dictDetailsOutput[f'Split adjustment on {strSecondLastDate}'] = 'None' if splitFactorSecondLastDate == 1 else f'{int((1 / splitFactorSecondLastDate) * 100) / 100} for 1 split' 
+
+    if splitFactorLastDate == 0 or splitFactorLastDate is None: 
+        dictDetailsOutput[f'Split adjustment on {strLastDate}'] = 'NA' 
+    else: 
+        dictDetailsOutput[f'Split adjustment on {strLastDate}'] = 'None' if splitFactorLastDate == 1 else f'{int((1 / splitFactorLastDate) * 100) / 100} for 1 split' 
+
+    if splitFactorSecondLastDate == 0 or splitFactorSecondLastDate is None: 
+        dictDetailsOutput[f'Split adjustment on {strSecondLastDate}'] = 'NA' 
+    else: 
+        dictDetailsOutput[f'Split adjustment on {strSecondLastDate}'] = 'None' if splitFactorSecondLastDate == 1 else f'{int((1 / splitFactorSecondLastDate) * 100) / 100} for 1 split' 
     
     dictDetailsOutput['detailsAvailable'] = True 
 
