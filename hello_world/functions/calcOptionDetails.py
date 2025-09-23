@@ -22,7 +22,7 @@ def calcOptionDetails(serPositionsDetailsInput, dictOptionPrices, dfPricesSplitA
     else: 
         relevantOptionDetails = {} 
     
-    print(f"Response for {serPositionsDetailsInput.loc['Ticker symbol']}: {relevantOptionDetails}") 
+    # print(f"Response for {serPositionsDetailsInput.loc['Ticker symbol']}: {relevantOptionDetails}") 
 
     returnNas = False 
     if relevantOptionDetails == {}: 
@@ -168,7 +168,7 @@ def calcOptionDetails(serPositionsDetailsInput, dictOptionPrices, dfPricesSplitA
             dictDetailsOutput['Total covered call delta'] = None if dictDetailsOutput['Covered call delta'] is None or dictDetailsOutput['Total shares deliverable'] is None else dictDetailsOutput['Covered call delta'] * dictDetailsOutput['Total shares deliverable'] 
             dictDetailsOutput['Total covered call beta'] = None if dictDetailsOutput['Covered call beta'] is None or dictDetailsOutput['Total shares deliverable'] is None else dictDetailsOutput['Covered call beta'] * dictDetailsOutput['Total shares deliverable'] 
     
-    if serPositionsDetailsInput['Option trade date'] != 'NA': 
+    if serPositionsDetailsInput['Option trade date'] != 'NA' and serPositionsDetailsInput['Option trade date'] != None: 
         tradeDate = pd.to_datetime(serPositionsDetailsInput['Option trade date'], format = '%Y-%m-%d').date() 
         underlyingPriceTradeDate = dfPricesSplitAdj[dfPricesSplitAdj.index <= pd.to_datetime(tradeDate)][dictDetailsOutput['Option underlying ticker']].iloc[-1] 
         if 'Option entry price' in serPositionsDetailsInput.index: 

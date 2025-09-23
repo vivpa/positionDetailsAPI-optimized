@@ -3,6 +3,7 @@ import intrinio_sdk as intrinio
 import numpy as np 
 import json 
 import pandas as pd 
+import re 
 import requests 
 import snowflake.connector 
 
@@ -253,82 +254,197 @@ def calcPositionsDetails(jsonPositionsDetailsInput):
 
     # Calculating the position details for all the tickers 
     dictPositionsDetailsOutput = {} 
+    lstPositionIds = dfInstrumentsDetails.loc['position_detail_id'].tolist() 
     for eachColumn in dfInstrumentsDetails.columns: 
         eachPosition = dfInstrumentsDetails[eachColumn]
-        position_id = str(eachPosition['position_detail_id'])
         eachTicker = eachPosition['Ticker symbol'] 
-        benchmarkTicker = 'SPY' if pd.isna(dfInstrumentsDetails.loc['Benchmark', eachColumn]) else dfInstrumentsDetails.loc['Benchmark', eachColumn] 
+        position_id = str(eachPosition['position_detail_id'])
+        runPositionDetails = True 
 
-        print(f"Position ticker: {dfInstrumentsDetails.loc['Ticker symbol', eachColumn]}") 
+        print(eachTicker) 
+
+        # Checking that the ticker type is a string 
+        if not isinstance(eachPosition['Ticker type'], str): 
+            dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False, 'errorMessage': 'Ticker type for position is not a string' } 
+
+            runPositionDetails = False 
         
-        if ' ' in eachTicker: 
-            eachTickerModified = eachTicker.split(' ')[0] 
-        elif '_' in eachTicker: 
-            eachTickerModified = eachTicker.split('_')[0] 
-        else: 
-            hasAlphabets = any(c.isalpha() for c in eachTicker) 
-            hasNumbers = any(c.isdigit() for c in eachTicker) 
-            if hasAlphabets and hasNumbers: 
-                eachTickerModified = eachTicker[0: len(eachTicker) - 15] 
-            else: 
-                eachTickerModified = eachTicker 
+        # Checking that the ticker symbol is a string 
+        if not isinstance(eachPosition['Ticker symbol'], str): 
+            dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False, 'errorMessage': 'Ticker for position is not a string' } 
+
+            runPositionDetails = False 
         
-        if eachPosition['Ticker type'].lower() == 'option': 
-            # Check if required columns exist in DataFrames
-            if eachTickerModified not in dfPricesSplitAdj.columns:
-                dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False, 'errorMessage': f'Price data not available for ticker: {eachTickerModified}' }
-            elif benchmarkTicker == eachTickerModified: 
-                # Get available columns for the ticker
-                available_cols_prices = [col for col in [eachTickerModified] if col in dfPricesSplitAdj.columns]
-                available_cols_final = [col for col in [eachTickerModified] if col in dfPricesFinalNonAdj.columns]
-                available_cols_adj = [col for col in [eachTickerModified] if col in dfAdjFactors.columns]
-                available_cols_div = [col for col in [eachTickerModified] if col in dfDividendsSplitAdj.columns]
-                
-                dictPositionsDetailsOutput[position_id] = calcOptionDetails(eachPosition, dictOptionPrices, dfPricesSplitAdj[available_cols_prices], dfPricesFinalNonAdj[available_cols_final], dfAdjFactors[available_cols_adj], dfDividendsSplitAdj[available_cols_div], lstPositionNamesAndPrices, dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection) 
+        # Checking that the ticker symbol is not blank or NA 
+        if eachPosition['Ticker symbol'].strip() == '' or pd.isna(eachPosition['Ticker symbol']): 
+            dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False, 'errorMessage': 'Ticker symbol for the position is blank' } 
+
+            runPositionDetails = False 
+        
+        # Checking that position_detail_id's are not duplicate 
+        if lstPositionIds.count(eachPosition['position_detail_id']) > 1: 
+            dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False, 'errorMessage': f'Multiple positions with position IDs {position_id}' } 
+
+            runPositionDetails = False 
+        
+        # Checking that the ticker position is not a non-number 
+        if not isinstance(eachPosition['Ticker position'], (int, float)): 
+            dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False, 'errorMessage': 'Ticker for position is not a string' } 
+
+            runPositionDetails = False 
+        
+        # Checking that the ticker position is not negative 
+        if eachPosition['Ticker position'] < 0: 
+            dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False, 'errorMessage': 'Ticker for position is negative' } 
+
+            runPositionDetails = False 
+        
+        if eachPosition['Option trade date'] != 'NA' and eachPosition['Option trade date'] != None: 
+            # Checking that the option trade date is a string 
+            if not isinstance(eachPosition['Option trade date'], str): 
+                dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False, 'errorMessage': 'Option trade date is not a string' } 
+
+                runPositionDetails = False 
+        
+            # Checking that the option trade date is in the correct format 
+            if not re.match(r'^\d{4}-\d{2}-\d{2}$', eachPosition['Option trade date']): 
+                dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False, 'errorMessage': "Option trade date not in the 'YYYY-MM-DD' format" } 
+
+                runPositionDetails = False 
+        
+            # Checking that the option trade date is valid 
+            try: 
+                dt.datetime.strptime(eachPosition['Option trade date'], '%Y-%m-%d') 
+
+                runPositionDetails = True 
+            except: 
+                dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False, 'errorMessage': "Option trade date not in a valid date" } 
+
+                runPositionDetails = False 
+        
+        if eachPosition['Option entry price'] != 'NA': 
+            # Checking that the option entry price is a number 
+            if not isinstance(eachPosition['Option entry price'], (int, float)): 
+                dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False, 'errorMessage': "Option entry price is not 'NA' or a number" } 
+
+                runPositionDetails = False 
             else: 
-                # Check if both tickers exist
-                required_tickers = [eachTickerModified, benchmarkTicker]
-                missing_tickers = [ticker for ticker in required_tickers if ticker not in dfPricesSplitAdj.columns]
-                
-                if missing_tickers:
-                    dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False, 'errorMessage': f'Price data not available for tickers: {", ".join(missing_tickers)}' }
-                else:
-                    # Get available columns for both tickers
-                    available_cols_prices = [col for col in required_tickers if col in dfPricesSplitAdj.columns]
-                    available_cols_final = [col for col in required_tickers if col in dfPricesFinalNonAdj.columns]
-                    available_cols_adj = [col for col in required_tickers if col in dfAdjFactors.columns]
-                    available_cols_div = [col for col in required_tickers if col in dfDividendsSplitAdj.columns]
-                    
-                    dictPositionsDetailsOutput[position_id] = calcOptionDetails(eachPosition, dictOptionPrices, dfPricesSplitAdj[available_cols_prices], dfPricesFinalNonAdj[available_cols_final], dfAdjFactors[available_cols_adj], dfDividendsSplitAdj[available_cols_div], lstPositionNamesAndPrices, dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection) 
-        elif eachPosition['Ticker type'].lower() == 'equity': 
-            # Check if required columns exist in DataFrames
-            if eachTickerModified not in dfPricesSplitAdj.columns:
-                dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False, 'errorMessage': f'Price data not available for ticker: {eachTickerModified}' }
-            elif benchmarkTicker == eachTickerModified: 
-                # Get available columns for the ticker
-                available_cols_prices = [col for col in [eachTickerModified] if col in dfPricesSplitAdj.columns]
-                available_cols_final = [col for col in [eachTickerModified] if col in dfPricesFinalNonAdj.columns]
-                available_cols_adj = [col for col in [eachTickerModified] if col in dfAdjFactors.columns]
-                available_cols_div = [col for col in [eachTickerModified] if col in dfDividendsSplitAdj.columns]
-                
-                dictPositionsDetailsOutput[position_id] = calcEquityDetails(eachPosition, dfImpliedVols1m, dfPricesSplitAdj[available_cols_prices], dfPricesFinalNonAdj[available_cols_final], dfAdjFactors[available_cols_adj], dfDividendsSplitAdj[available_cols_div], lstPositionNamesAndPrices, dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection) 
+                # If option entry price is a number, checking that it is positive 
+                if eachPosition['Option entry price'] < 0: 
+                    dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False, 'errorMessage': "Option entry price is less than 0" } 
+
+                    runPositionDetails = False 
+        
+        # Checking that the position_detail_id is a string 
+        if not isinstance(eachPosition['position_detail_id'], str): 
+            dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False, 'errorMessage': "Position detail ID for position is not a string" } 
+
+            runPositionDetails = False 
+        
+        # Checking that the position_detail_id is not blank 
+        if eachPosition['position_detail_id'].strip() == '': 
+            dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False, 'errorMessage': "Position detail ID for position is blank" } 
+
+            runPositionDetails = False 
+
+        if eachPosition['Underlying position'] != 'NA': 
+            # Checking that the underlying position is a number 
+            if not isinstance(eachPosition['Underlying position'], (int, float)): 
+                dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False, 'errorMessage': "Underlying position is not 'NA' or a number" } 
+
+                runPositionDetails = False 
             else: 
-                # Check if both tickers exist
-                required_tickers = [eachTickerModified, benchmarkTicker]
-                missing_tickers = [ticker for ticker in required_tickers if ticker not in dfPricesSplitAdj.columns]
-                
-                if missing_tickers:
-                    dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False, 'errorMessage': f'Price data not available for tickers: {", ".join(missing_tickers)}' }
-                else:
-                    # Get available columns for both tickers
-                    available_cols_prices = [col for col in required_tickers if col in dfPricesSplitAdj.columns]
-                    available_cols_final = [col for col in required_tickers if col in dfPricesFinalNonAdj.columns]
-                    available_cols_adj = [col for col in required_tickers if col in dfAdjFactors.columns]
-                    available_cols_div = [col for col in required_tickers if col in dfDividendsSplitAdj.columns]
+                # Checking that the underlying position is positive 
+                if eachPosition['Underlying position'] < 0: 
+                    dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False, 'errorMessage': "Underlying position is less than 0" } 
+
+                    runPositionDetails = False 
+        
+        if runPositionDetails == True: 
+            benchmarkTicker = 'SPY' if pd.isna(dfInstrumentsDetails.loc['Benchmark', eachColumn]) else dfInstrumentsDetails.loc['Benchmark', eachColumn] 
+
+            if ' ' in eachTicker: 
+                eachTickerModified = eachTicker.split(' ')[0] 
+            elif '_' in eachTicker: 
+                eachTickerModified = eachTicker.split('_')[0] 
+            else: 
+                hasAlphabets = any(c.isalpha() for c in eachTicker) 
+                hasNumbers = any(c.isdigit() for c in eachTicker) 
+                if hasAlphabets and hasNumbers: 
+                    eachTickerModified = eachTicker[0: len(eachTicker) - 15] 
+                else: 
+                    eachTickerModified = eachTicker 
+            
+            if eachPosition['Ticker type'].lower() not in ['equity', 'option', 'other']: 
+                dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False, 'errorMessage': "Position type should be one of 'equity', 'option' or 'other'" } 
+            elif eachPosition['Ticker type'].lower() == 'option': 
+                # Check if required columns exist in DataFrames
+                if eachTickerModified not in dfPricesSplitAdj.columns:
+                    dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False, 'errorMessage': f'Price data not available for ticker: {eachTickerModified}' }
+                elif benchmarkTicker == eachTickerModified: 
+                    # Get available columns for the ticker
+                    available_cols_prices = [col for col in [eachTickerModified] if col in dfPricesSplitAdj.columns]
+                    available_cols_final = [col for col in [eachTickerModified] if col in dfPricesFinalNonAdj.columns]
+                    available_cols_adj = [col for col in [eachTickerModified] if col in dfAdjFactors.columns]
+                    available_cols_div = [col for col in [eachTickerModified] if col in dfDividendsSplitAdj.columns]
                     
-                    dictPositionsDetailsOutput[position_id] = calcEquityDetails(eachPosition, dfImpliedVols1m, dfPricesSplitAdj[available_cols_prices], dfPricesFinalNonAdj[available_cols_final], dfAdjFactors[available_cols_adj], dfDividendsSplitAdj[available_cols_div], lstPositionNamesAndPrices, dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection) 
-        elif eachPosition['Ticker type'].lower() == 'other': 
-            dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False, 'errorMessage': 'Ticker is not a listed equity or option' } 
+                    try: 
+                        dictPositionsDetailsOutput[position_id] = calcOptionDetails(eachPosition, dictOptionPrices, dfPricesSplitAdj[available_cols_prices], dfPricesFinalNonAdj[available_cols_final], dfAdjFactors[available_cols_adj], dfDividendsSplitAdj[available_cols_div], lstPositionNamesAndPrices, dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection) 
+                    except: 
+                        dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False, 'errorMessage': 'Data not extracted for position' } 
+                else: 
+                    # Check if both tickers exist
+                    required_tickers = [eachTickerModified, benchmarkTicker]
+                    missing_tickers = [ticker for ticker in required_tickers if ticker not in dfPricesSplitAdj.columns]
+                    
+                    if missing_tickers:
+                        dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False, 'errorMessage': f'Price data not available for tickers: {", ".join(missing_tickers)}' }
+                    else:
+                        # Get available columns for both tickers
+                        available_cols_prices = [col for col in required_tickers if col in dfPricesSplitAdj.columns]
+                        available_cols_final = [col for col in required_tickers if col in dfPricesFinalNonAdj.columns]
+                        available_cols_adj = [col for col in required_tickers if col in dfAdjFactors.columns]
+                        available_cols_div = [col for col in required_tickers if col in dfDividendsSplitAdj.columns]
+                        
+                        try: 
+                            dictPositionsDetailsOutput[position_id] = calcOptionDetails(eachPosition, dictOptionPrices, dfPricesSplitAdj[available_cols_prices], dfPricesFinalNonAdj[available_cols_final], dfAdjFactors[available_cols_adj], dfDividendsSplitAdj[available_cols_div], lstPositionNamesAndPrices, dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection) 
+                        except: 
+                            dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False, 'errorMessage': 'Data not extracted for position' } 
+            elif eachPosition['Ticker type'].lower() == 'equity': 
+                # Check if required columns exist in DataFrames
+                if eachTickerModified not in dfPricesSplitAdj.columns:
+                    dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False, 'errorMessage': f'Price data not available for ticker: {eachTickerModified}' }
+                elif benchmarkTicker == eachTickerModified: 
+                    # Get available columns for the ticker
+                    available_cols_prices = [col for col in [eachTickerModified] if col in dfPricesSplitAdj.columns]
+                    available_cols_final = [col for col in [eachTickerModified] if col in dfPricesFinalNonAdj.columns]
+                    available_cols_adj = [col for col in [eachTickerModified] if col in dfAdjFactors.columns]
+                    available_cols_div = [col for col in [eachTickerModified] if col in dfDividendsSplitAdj.columns]
+                    
+                    try: 
+                        dictPositionsDetailsOutput[position_id] = calcEquityDetails(eachPosition, dfImpliedVols1m, dfPricesSplitAdj[available_cols_prices], dfPricesFinalNonAdj[available_cols_final], dfAdjFactors[available_cols_adj], dfDividendsSplitAdj[available_cols_div], lstPositionNamesAndPrices, dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection) 
+                    except: 
+                        dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False, 'errorMessage': 'Data not extracted for position' } 
+                else: 
+                    # Check if both tickers exist
+                    required_tickers = [eachTickerModified, benchmarkTicker]
+                    missing_tickers = [ticker for ticker in required_tickers if ticker not in dfPricesSplitAdj.columns]
+                    
+                    if missing_tickers:
+                        dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False, 'errorMessage': f'Price data not available for tickers: {", ".join(missing_tickers)}' }
+                    else:
+                        # Get available columns for both tickers
+                        available_cols_prices = [col for col in required_tickers if col in dfPricesSplitAdj.columns]
+                        available_cols_final = [col for col in required_tickers if col in dfPricesFinalNonAdj.columns]
+                        available_cols_adj = [col for col in required_tickers if col in dfAdjFactors.columns]
+                        available_cols_div = [col for col in required_tickers if col in dfDividendsSplitAdj.columns]
+                        
+                        try: 
+                            dictPositionsDetailsOutput[position_id] = calcEquityDetails(eachPosition, dfImpliedVols1m, dfPricesSplitAdj[available_cols_prices], dfPricesFinalNonAdj[available_cols_final], dfAdjFactors[available_cols_adj], dfDividendsSplitAdj[available_cols_div], lstPositionNamesAndPrices, dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection) 
+                        except: 
+                            dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False, 'errorMessage': 'Data not extracted for position' } 
+            elif eachPosition['Ticker type'].lower() == 'other': 
+                dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False, 'errorMessage': 'Ticker is not a listed equity or option' } 
     
     # Convert each entry to dict and fill NAs
     dictPositionsDetailsOutputRevised = {
