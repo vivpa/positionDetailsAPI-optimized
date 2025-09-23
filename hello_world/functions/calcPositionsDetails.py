@@ -46,10 +46,12 @@ def calcPositionsDetails(jsonPositionsDetailsInput):
     if ' ' in lstAllTickersRevised: 
         lstAllTickersRevised.remove(' ') 
     
-    benchmarkTicker = 'SPY' 
-    if benchmarkTicker not in lstAllTickersRevised: 
-        lstAllTickersRevised.append(benchmarkTicker)
-    
+    lstAllBenchmarkTickersUnique =  list(np.unique([('SPY' if pd.isna(dfInstrumentsDetails.loc['Benchmark', eachColumn]) else dfInstrumentsDetails.loc['Benchmark', eachColumn]) for eachColumn in dfInstrumentsDetails.columns])) 
+
+    for eachTicker in lstAllBenchmarkTickersUnique: 
+        if eachTicker not in lstAllTickersRevised: 
+            lstAllTickersRevised = lstAllTickersRevised + [eachTicker] 
+
     intrinioApiKey = getSecretsIntrinioApiKey() 
     intrinio.ApiClient().set_api_key(intrinioApiKey) 
     intrinio.ApiClient().allow_retries(True)
@@ -213,6 +215,8 @@ def calcPositionsDetails(jsonPositionsDetailsInput):
         dfSnowflakeIds, errorMessageStockIds = snowflakeIdTestQuery(lstEquityTickers, snowflakeConnection) 
     except: 
         dfSnowflakeIds, errorMessageStockIds = pd.DataFrame(), 'Stock IDs not found for any tickers' 
+    
+    print(errorMessageStockIds) 
 
     dfSnowflakeIds = dfSnowflakeIds[['STOCK_ID', 'SYMBOL']] 
 
@@ -224,12 +228,15 @@ def calcPositionsDetails(jsonPositionsDetailsInput):
     except: 
         dfImpliedVols1m, errorMessageImpliedVols = pd.DataFrame(), 'Implied volatilities not found for any tickers' 
     
+    print(errorMessageImpliedVols) 
+
     # Calculating the position details for all the tickers 
     dictPositionsDetailsOutput = {} 
     for eachColumn in dfInstrumentsDetails.columns: 
         eachPosition = dfInstrumentsDetails[eachColumn]
         position_id = str(eachPosition['position_detail_id'])
         eachTicker = eachPosition['Ticker symbol'] 
+        benchmarkTicker = 'SPY' if pd.isna(dfInstrumentsDetails.loc['Benchmark', eachColumn]) else dfInstrumentsDetails.loc['Benchmark', eachColumn] 
 
         print(f"Position ticker: {dfInstrumentsDetails.loc['Ticker symbol', eachColumn]}") 
         

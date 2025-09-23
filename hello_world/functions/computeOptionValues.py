@@ -14,8 +14,8 @@ def computeOptionValues(optionType, underlyingPrice, strikePrice, optionMidPrice
     # For calls: check if in-the-money AND time_val < expected_dividend 
     # Typically ignoring interest rates & days to expiry for simplicity 
     if (optionType == "call") and (underlyingPrice > strikePrice) and (timeValue < expectedDividend): 
-        earlyExercise = 'Y' 
+        earlyExercise = 'High probability' 
     else:
-        earlyExercise = 'N' 
+        earlyExercise = 'Low probability' 
     
     return intrinsicValue, timeValue, earlyExercise 

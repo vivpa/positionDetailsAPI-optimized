@@ -9,7 +9,7 @@ from functions.computeOptionValues import computeOptionValues
 from functions.getLatestWeekday import getLatestWeekday 
 
 def calcOptionDetails(serPositionsDetailsInput, dictOptionPrices, dfPricesSplitAdj, dfPricesFinalNonAdj, dfAdjFactors, dfDividendsSplitAdj, lstPositionNamesAndPrices, dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection): 
-    benchmarkTicker = 'SPY' 
+    benchmarkTicker = 'SPY' if (pd.isna(serPositionsDetailsInput.loc['Benchmark']) or serPositionsDetailsInput.loc['Benchmark'] == '') else serPositionsDetailsInput.loc['Benchmark'] 
     
     if dictOptionPrices != {}: 
         for eachDictOptionDetails in dictOptionPrices['contracts']: 
@@ -154,6 +154,8 @@ def calcOptionDetails(serPositionsDetailsInput, dictOptionPrices, dfPricesSplitA
             # Calculation of beta versus benchmark 
             dfReturns = (dfPricesSplitAdj / dfPricesSplitAdj.shift(1) - 1).dropna() 
             dfCovMatrix = dfReturns.cov() 
+            
+            dictDetailsOutput['Benchmark'] = benchmarkTicker 
             
             benchmark_variance = dfReturns.std()[benchmarkTicker] ** 2
             betaVsBenchmark = None if benchmark_variance == 0 or benchmark_variance is None else dfCovMatrix.loc[dictDetailsOutput['Option underlying ticker'], benchmarkTicker] / benchmark_variance 
