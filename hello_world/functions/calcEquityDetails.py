@@ -5,11 +5,10 @@ import pandas as pd
 import requests 
 
 from functions.calcRsi import calcRsi 
-from functions.calcImpliedVol import calcImpliedVol 
 from functions.getLatestWeekday import getLatestWeekday 
 
 def calcEquityDetails(serPositionsDetailsInput, dfImpliedVols1m, dfPricesSplitAdj, dfPricesFinalNonAdj, dfAdjFactors, dfDividendsSplitAdj, lstPositionNamesAndPrices, dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection): 
-    benchmarkTicker = 'SPY' 
+    benchmarkTicker = 'SPY' if (pd.isna(serPositionsDetailsInput.loc['Benchmark']) or serPositionsDetailsInput.loc['Benchmark'] == '') else serPositionsDetailsInput.loc['Benchmark'] 
     
     if len(lstPositionNamesAndPrices) > 0: 
         for eachItem in lstPositionNamesAndPrices: 
@@ -102,18 +101,20 @@ def calcEquityDetails(serPositionsDetailsInput, dfImpliedVols1m, dfPricesSplitAd
     lastPrice = dfPricesSplitAdj[tickerSymbol].iloc[-1] 
 
     if tickerSymbol in list(dfImpliedVols1m.index): 
-        dictDetailsOutput['1m implied volatility'] = dfImpliedVols1m[dfImpliedVols1m.index == tickerSymbol]['Implied vol 1m'].iloc[0] 
+        dictDetailsOutput['1m implied volatility'] = 'NA' if (pd.isna(dfImpliedVols1m[dfImpliedVols1m.index == tickerSymbol]['Implied vol 1m'].iloc[0]) or dfImpliedVols1m[dfImpliedVols1m.index == tickerSymbol]['Implied vol 1m'].iloc[0] == 0) else dfImpliedVols1m[dfImpliedVols1m.index == tickerSymbol]['Implied vol 1m'].iloc[0] 
     else: 
         dictDetailsOutput['1m implied volatility'] = 'NA' 
     
     dictDetailsOutput['1m realized volatility'] = (np.log(dfPricesSplitAdj[tickerSymbol] / dfPricesSplitAdj[tickerSymbol].shift(1))).rolling(22).std().iloc[-1] * np.sqrt(252) 
-
+    
     if dictDetailsOutput['1m implied volatility'] != 'NA': 
-        dictDetailsOutput['1m implied volatility premium'] = None if dictDetailsOutput['1m implied volatility'] is None or dictDetailsOutput['1m realized volatility'] is None else dictDetailsOutput['1m implied volatility'] - dictDetailsOutput['1m realized volatility'] 
+        dictDetailsOutput['1m implied volatility premium'] = 'NA' if dictDetailsOutput['1m implied volatility'] is None or dictDetailsOutput['1m realized volatility'] is None else dictDetailsOutput['1m implied volatility'] - dictDetailsOutput['1m realized volatility'] 
     else: 
         dictDetailsOutput['1m implied volatility premium'] = 'NA' 
 
     # Calculation of beta versus benchmark 
+    dictDetailsOutput['Benchmark'] = benchmarkTicker 
+    
     dfReturns = (dfPricesSplitAdj / dfPricesSplitAdj.shift(1) - 1).dropna() 
     dfCovMatrix = dfReturns.cov() 
     benchmark_variance = dfReturns[benchmarkTicker].std() ** 2

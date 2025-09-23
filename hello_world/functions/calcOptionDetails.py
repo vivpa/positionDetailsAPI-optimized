@@ -9,7 +9,7 @@ from functions.computeOptionValues import computeOptionValues
 from functions.getLatestWeekday import getLatestWeekday 
 
 def calcOptionDetails(serPositionsDetailsInput, dictOptionPrices, dfPricesSplitAdj, dfPricesFinalNonAdj, dfAdjFactors, dfDividendsSplitAdj, lstPositionNamesAndPrices, dfEarningsSelectedTickers, dfDividendsSelectedTickers, intrinioApiKey, snowflakeConnection): 
-    benchmarkTicker = 'SPY' 
+    benchmarkTicker = 'SPY' if (pd.isna(serPositionsDetailsInput.loc['Benchmark']) or serPositionsDetailsInput.loc['Benchmark'] == '') else serPositionsDetailsInput.loc['Benchmark'] 
     
     if dictOptionPrices != {}: 
         for eachDictOptionDetails in dictOptionPrices['contracts']: 
@@ -22,7 +22,7 @@ def calcOptionDetails(serPositionsDetailsInput, dictOptionPrices, dfPricesSplitA
     else: 
         relevantOptionDetails = {} 
     
-    print(f"Response for {serPositionsDetailsInput.loc['Ticker symbol']}: {relevantOptionDetails}") 
+    # print(f"Response for {serPositionsDetailsInput.loc['Ticker symbol']}: {relevantOptionDetails}") 
 
     returnNas = False 
     if relevantOptionDetails == {}: 
@@ -34,7 +34,7 @@ def calcOptionDetails(serPositionsDetailsInput, dictOptionPrices, dfPricesSplitA
         return { "detailsAvailable": False, "errorMessage": "Option details not available in database" } 
     
     dictDetailsOutput = {} 
-    dictDetailsOutput['Option underlying ticker'] = relevantOptionDetails['option']['ticker'] 
+    dictDetailsOutput['Option underlying ticker'] = relevantOptionDetails['option']['ticker'].replace(' ', '') if ' ' in relevantOptionDetails['option']['ticker'] else relevantOptionDetails['option']['ticker'] 
     
     if len(lstPositionNamesAndPrices) > 0: 
         for eachItem in lstPositionNamesAndPrices: 
@@ -53,6 +53,10 @@ def calcOptionDetails(serPositionsDetailsInput, dictOptionPrices, dfPricesSplitA
         dictDetailsOutput['Option underlying name'] = '' 
     
     dictDetailsOutput['Option underlying price'] = relevantOptionDetails['stats']['underlying_price'] 
+
+    if pd.isna(dictDetailsOutput['Option underlying price']): 
+        dictDetailsOutput['Option underlying price'] = dfPricesSplitAdj[dictDetailsOutput['Option underlying ticker']].iloc[-1] 
+
     dictDetailsOutput['Option type'] = relevantOptionDetails['option']['type'] 
     dictDetailsOutput['Option expiry'] = pd.to_datetime(relevantOptionDetails['option']['expiration']).strftime('%Y-%m-%d') 
     dictDetailsOutput['Option strike'] = relevantOptionDetails['option']['strike'] 
@@ -73,7 +77,8 @@ def calcOptionDetails(serPositionsDetailsInput, dictOptionPrices, dfPricesSplitA
     elif dictDetailsOutput['Bid'] is not None:
         dictDetailsOutput['Mid'] = dictDetailsOutput['Bid']
     else:
-        dictDetailsOutput['Mid'] = None
+        dictDetailsOutput['Mid'] = None 
+    
     dictDetailsOutput['Option implied volatility'] = relevantOptionDetails['stats']['implied_volatility'] 
     dictDetailsOutput['Option moneyness'] = None if dictDetailsOutput['Option underlying price'] == 0 or dictDetailsOutput['Option underlying price'] is None else dictDetailsOutput['Option strike'] / dictDetailsOutput['Option underlying price'] 
 
@@ -127,7 +132,6 @@ def calcOptionDetails(serPositionsDetailsInput, dictOptionPrices, dfPricesSplitA
     lstPercentiles = [0.01 * i for i in range(101)] 
     dfReturnsDistribution = pd.DataFrame(index = lstPercentiles, columns = ['Underlying return', 'Underlying price', 'Option payoff']) 
     for eachPercentile in lstPercentiles: 
-        
         dfReturnsDistribution.loc[eachPercentile, 'Underlying return'] = dfReturnsData[dictDetailsOutput['Option underlying ticker']].quantile(eachPercentile) 
         dfReturnsDistribution.loc[eachPercentile, 'Underlying price'] = None if dictDetailsOutput['Option underlying price'] is None or dfReturnsDistribution.loc[eachPercentile, 'Underlying return'] is None else dictDetailsOutput['Option underlying price'] * (1 + dfReturnsDistribution.loc[eachPercentile, 'Underlying return']) 
         
@@ -155,6 +159,8 @@ def calcOptionDetails(serPositionsDetailsInput, dictOptionPrices, dfPricesSplitA
             dfReturns = (dfPricesSplitAdj / dfPricesSplitAdj.shift(1) - 1).dropna() 
             dfCovMatrix = dfReturns.cov() 
             
+            dictDetailsOutput['Benchmark'] = benchmarkTicker 
+            
             benchmark_variance = dfReturns.std()[benchmarkTicker] ** 2
             betaVsBenchmark = None if benchmark_variance == 0 or benchmark_variance is None else dfCovMatrix.loc[dictDetailsOutput['Option underlying ticker'], benchmarkTicker] / benchmark_variance 
             
@@ -162,7 +168,7 @@ def calcOptionDetails(serPositionsDetailsInput, dictOptionPrices, dfPricesSplitA
             dictDetailsOutput['Total covered call delta'] = None if dictDetailsOutput['Covered call delta'] is None or dictDetailsOutput['Total shares deliverable'] is None else dictDetailsOutput['Covered call delta'] * dictDetailsOutput['Total shares deliverable'] 
             dictDetailsOutput['Total covered call beta'] = None if dictDetailsOutput['Covered call beta'] is None or dictDetailsOutput['Total shares deliverable'] is None else dictDetailsOutput['Covered call beta'] * dictDetailsOutput['Total shares deliverable'] 
     
-    if serPositionsDetailsInput['Option trade date'] != 'NA': 
+    if serPositionsDetailsInput['Option trade date'] != 'NA' and serPositionsDetailsInput['Option trade date'] != None: 
         tradeDate = pd.to_datetime(serPositionsDetailsInput['Option trade date'], format = '%Y-%m-%d').date() 
         underlyingPriceTradeDate = dfPricesSplitAdj[dfPricesSplitAdj.index <= pd.to_datetime(tradeDate)][dictDetailsOutput['Option underlying ticker']].iloc[-1] 
         if 'Option entry price' in serPositionsDetailsInput.index: 

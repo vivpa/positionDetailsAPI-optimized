@@ -22,10 +22,13 @@ from snowflake.connector.errors import (
 def snowflakeIvolQueries(dfSnowflakeIds, lstEquityTickers, startDate, endDate, snowflakeConnection): 
     strStockIds = '' 
     for eachIndex in dfSnowflakeIds.index: 
-        if strStockIds != '': 
-            strStockIds = strStockIds + ',' 
-        
-        strStockIds = strStockIds + "'" + str(dfSnowflakeIds.loc[eachIndex, 'STOCK_ID']) + "'" 
+        if pd.isna(dfSnowflakeIds.loc[eachIndex, 'STOCK_ID']) or dfSnowflakeIds.loc[eachIndex, 'STOCK_ID'] == '': 
+            continue 
+        else: 
+            if strStockIds != '': 
+                strStockIds = strStockIds + ',' 
+            
+            strStockIds = strStockIds + "'" + str(dfSnowflakeIds.loc[eachIndex, 'STOCK_ID']) + "'" 
 
     # Query to fetch implied volatility
     query = f""" 
