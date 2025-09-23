@@ -20,8 +20,17 @@ def calcPositionsDetails(jsonPositionsDetailsInput):
     dictPositionsDetailsInput = json.loads(jsonPositionsDetailsInput) 
     dfInstrumentsDetails = pd.DataFrame(dictPositionsDetailsInput['dfInstrumentsDetails']).T 
     
+    if 'Benchmark' not in list(dfInstrumentsDetails.columns): 
+        dfInstrumentsDetails.loc['Benchmark'] = np.nan 
+
     lstAllTickers = [dfInstrumentsDetails.loc['Ticker symbol', eachColumn] for eachColumn in dfInstrumentsDetails.columns] 
     
+    # For all option tickers, remove spaces in the tickernames  
+    for eachColumn in dfInstrumentsDetails.columns: 
+        if dfInstrumentsDetails.loc['Ticker type', eachColumn].lower() == 'option': 
+            if ' ' in dfInstrumentsDetails.loc['Ticker symbol', eachColumn]: 
+                dfInstrumentsDetails.loc['Ticker symbol', eachColumn] = dfInstrumentsDetails.loc['Ticker symbol', eachColumn].replace(' ', '') 
+
     i = 0 
     lstAllTickersRevised = [] 
     for eachTicker in lstAllTickers: 
@@ -211,22 +220,34 @@ def calcPositionsDetails(jsonPositionsDetailsInput):
         if eachPosition['Ticker type'].lower() == 'equity': 
             lstEquityTickers = lstEquityTickers + [eachTickerModified] 
     
-    try: 
-        dfSnowflakeIds, errorMessageStockIds = snowflakeIdTestQuery(lstEquityTickers, snowflakeConnection) 
-    except: 
-        dfSnowflakeIds, errorMessageStockIds = pd.DataFrame(), 'Stock IDs not found for any tickers' 
-    
-    print(errorMessageStockIds) 
+    if lstEquityTickers != []: 
+        try: 
+            dfSnowflakeIds, errorMessageStockIds = snowflakeIdTestQuery(lstEquityTickers, snowflakeConnection) 
+        except: 
+            dfSnowflakeIds, errorMessageStockIds = pd.DataFrame(), 'Stock IDs not found for any tickers' 
+        
+        print(errorMessageStockIds) 
+        
+        dfSnowflakeIds = dfSnowflakeIds[['STOCK_ID', 'SYMBOL']] 
+    else: 
+        errorMessageStockIds = 'Input does not contain any stocks' 
 
-    dfSnowflakeIds = dfSnowflakeIds[['STOCK_ID', 'SYMBOL']] 
+        print(errorMessageStockIds) 
+
+        dfSnowflakeIds = pd.DataFrame() 
 
     startDate = (dt.datetime.now() - dt.timedelta(days = 30)).strftime("%Y%m%d") 
     endDate = dt.datetime.now().strftime("%Y%m%d") 
 
-    try: 
-        dfImpliedVols1m, errorMessageImpliedVols = snowflakeIvolQueries(dfSnowflakeIds, lstEquityTickers, startDate, endDate, snowflakeConnection) 
-    except: 
-        dfImpliedVols1m, errorMessageImpliedVols = pd.DataFrame(), 'Implied volatilities not found for any tickers' 
+    if not dfSnowflakeIds.empty: 
+        try: 
+            dfImpliedVols1m, errorMessageImpliedVols = snowflakeIvolQueries(dfSnowflakeIds, lstEquityTickers, startDate, endDate, snowflakeConnection) 
+        except: 
+            dfImpliedVols1m, errorMessageImpliedVols = pd.DataFrame(), 'Implied volatilities not found for any tickers' 
+    else: 
+        dfImpliedVols1m = pd.DataFrame() 
+
+        errorMessageImpliedVols = 'Input does not contain any stocks' 
     
     print(errorMessageImpliedVols) 
 
