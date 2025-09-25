@@ -375,6 +375,9 @@ def calcPositionsDetails(jsonPositionsDetailsInput):
                 else: 
                     eachTickerModified = eachTicker 
             
+            if eachTickerModified == 'BRKB': 
+                eachTickerModified = 'BRK.B' 
+            
             if eachPosition['Ticker type'].lower() not in ['equity', 'option', 'other']: 
                 dictPositionsDetailsOutput[position_id] = { 'detailsAvailable': False, 'errorMessage': "Position type should be one of 'equity', 'option' or 'other'" } 
             elif eachPosition['Ticker type'].lower() == 'option': 
