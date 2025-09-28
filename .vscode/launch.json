@@ -1,0 +1,33 @@
+{
+	"configurations": [
+		{
+			"name": "Python: Debug Lambda Locally",
+			"type": "python",
+			"request": "launch",
+			"program": "${workspaceFolder}/debug_locally.py",
+			"console": "integratedTerminal",
+			"justMyCode": false,
+			"python": "${workspaceFolder}/.venv/bin/python",
+			"env": {
+				"PYTHONPATH": "${workspaceFolder}/hello_world:${PYTHONPATH}"
+			}
+		},
+		{
+			"type": "aws-sam",
+			"request": "direct-invoke",
+			"name": "calcPositionsDetails:HelloWorldFunction (python3.9)",
+			"invokeTarget": {
+				"target": "template",
+				"templatePath": "${workspaceFolder}/template.yaml",
+				"logicalId": "HelloWorldFunction"
+			},
+			"lambda": {
+				"payload": {
+					"path": "${workspaceFolder}/events/event_0619_1.json"
+				},
+				"environmentVariables": {},
+				"runtime": "python3.9"
+			}
+		}
+	]
+}

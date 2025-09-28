@@ -1,4 +1,4 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: >
   python3.9
@@ -8,8 +8,13 @@ Description: >
 # More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
   Function:
-    Timeout: 3
-    MemorySize: 128
+    Timeout: 600
+    MemorySize: 10240
+  Api:
+    Auth:
+      DefaultAuthorizer: NONE
+      AddDefaultAuthorizerToCorsPreflight: false
+    TracingEnabled: true
 
 Resources:
   HelloWorldFunction:
@@ -18,16 +23,42 @@ Resources:
       PackageType: Image
       Architectures:
         - x86_64
+      Environment:
+        Variables:
+          SENTRY_DSN: !Ref SentryDSN
+          SENTRY_TRACES_SAMPLE_RATE: !Ref SentryTracesSampleRate
+          SENTRY_PROFILE_SAMPLE_RATE: !Ref SentryProfileSampleRate
       Events:
         HelloWorld:
           Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
           Properties:
             Path: /hello
             Method: get
+            Auth:
+              Authorizer: NONE
     Metadata:
       Dockerfile: Dockerfile
       DockerContext: ./hello_world
       DockerTag: python3.9-v1
+
+Parameters:
+  SentryDSN:
+    Type: String
+    Description: Sentry DSN for error monitoring
+    NoEcho: true
+    Default: "" # Allow empty for optional Sentry
+  SentryTracesSampleRate:
+    Type: Number
+    Description: Sentry traces sampling rate (0.0 to 1.0)
+    Default: 0.1
+    MinValue: 0.0
+    MaxValue: 1.0
+  SentryProfileSampleRate:
+    Type: Number
+    Description: Sentry profile sampling rate (0.0 to 1.0)
+    Default: 0.1
+    MinValue: 0.0
+    MaxValue: 1.0
 
 Outputs:
   # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
