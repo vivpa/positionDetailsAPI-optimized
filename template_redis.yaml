@@ -106,7 +106,7 @@ Resources:
           Value: position-details-private-subnet-2
 
   # Lambda Function with VPC Configuration
-  HelloWorldFunction:
+  PositionDetailsOptimizedFunction:
     Type: AWS::Serverless::Function
     Properties:
       PackageType: Image
@@ -126,11 +126,11 @@ Resources:
           REDIS_HOST: !GetAtt RedisCluster.RedisEndpoint.Address
           REDIS_PORT: !GetAtt RedisCluster.RedisEndpoint.Port
       Events:
-        HelloWorld:
+        PositionDetails:
           Type: Api
           Properties:
-            Path: /hello
-            Method: get
+            Path: /position-details
+            Method: post
             Auth:
               Authorizer: NONE
       Policies:
@@ -165,12 +165,12 @@ Parameters:
     MaxValue: 1.0
 
 Outputs:
-  HelloWorldApi:
-    Description: "API Gateway endpoint URL for Prod stage for Hello World function"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
-  HelloWorldFunction:
-    Description: "Hello World Lambda Function ARN"
-    Value: !GetAtt HelloWorldFunction.Arn
+  PositionDetailsApi:
+    Description: "API Gateway endpoint URL for Prod stage for Position Details function"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/position-details/"
+  PositionDetailsFunction:
+    Description: "Position Details Lambda Function ARN"
+    Value: !GetAtt PositionDetailsOptimizedFunction.Arn
   RedisEndpoint:
     Description: "Redis cluster endpoint"
     Value: !GetAtt RedisCluster.RedisEndpoint.Address
