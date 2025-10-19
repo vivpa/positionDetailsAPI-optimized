@@ -1,0 +1,103 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  python3.9
+
+  Optimized SAM Template for positionDetailsAPI with caching
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 60  # Reduced from 600 seconds
+    MemorySize: 3008  # Optimized memory allocation
+  Api:
+    Auth:
+      DefaultAuthorizer: NONE
+      AddDefaultAuthorizerToCorsPreflight: false
+    TracingEnabled: true
+
+Resources:
+  # DynamoDB Cache Table
+  CacheTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: position-details-cache
+      AttributeDefinitions:
+        - AttributeName: cache_key
+          AttributeType: S
+      KeySchema:
+        - AttributeName: cache_key
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      TimeToLiveSpecification:
+        AttributeName: expires_at
+        Enabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  HelloWorldFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      PackageType: Image
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          SENTRY_DSN: !Ref SentryDSN
+          SENTRY_TRACES_SAMPLE_RATE: !Ref SentryTracesSampleRate
+          SENTRY_PROFILE_SAMPLE_RATE: !Ref SentryProfileSampleRate
+          CACHE_TABLE_NAME: !Ref CacheTable
+      Events:
+        HelloWorld:
+          Type: Api
+          Properties:
+            Path: /hello
+            Method: get
+            Auth:
+              Authorizer: NONE
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref CacheTable
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: "*"
+    Metadata:
+      Dockerfile: Dockerfile
+      DockerContext: ./hello_world
+      DockerTag: python3.9-optimized
+
+Parameters:
+  SentryDSN:
+    Type: String
+    Description: Sentry DSN for error monitoring
+    NoEcho: true
+    Default: ""
+  SentryTracesSampleRate:
+    Type: Number
+    Description: Sentry traces sampling rate (0.0 to 1.0)
+    Default: 0.1
+    MinValue: 0.0
+    MaxValue: 1.0
+  SentryProfileSampleRate:
+    Type: Number
+    Description: Sentry profile sampling rate (0.0 to 1.0)
+    Default: 0.1
+    MinValue: 0.0
+    MaxValue: 1.0
+
+Outputs:
+  HelloWorldApi:
+    Description: "API Gateway endpoint URL for Prod stage for Hello World function"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
+  HelloWorldFunction:
+    Description: "Hello World Lambda Function ARN"
+    Value: !GetAtt HelloWorldFunction.Arn
+  HelloWorldFunctionIamRole:
+    Description: "Implicit IAM Role created for Hello World function"
+    Value: !GetAtt HelloWorldFunctionRole.Arn
+  CacheTable:
+    Description: "DynamoDB Cache Table Name"
+    Value: !Ref CacheTable
